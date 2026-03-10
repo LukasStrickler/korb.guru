@@ -1,0 +1,23 @@
+{
+  "name": "@korb/convex",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "convex": "^1.24.0"
+  },
+  "devDependencies": {
+    "@korb/config": "workspace:*",
+    "@types/node": "^20.11.0",
+    "eslint": "^9.22.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.0"
+  }
+}
