@@ -1,0 +1,41 @@
+{
+  "name": "@korb/contracts",
+  "version": "0.0.1",
+  "description": "Shared type contracts for mobile, FastAPI, and Convex integration",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "generate:api": "openapi --input ../../apps/api/openapi.json --output src/generated/api --exportCore false --exportServices false --exportSchemas false",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "contracts",
+    "types",
+    "shared"
+  ],
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "openapi-typescript-codegen": "^0.29.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
+  }
+}
