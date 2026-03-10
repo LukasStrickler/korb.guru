@@ -1,8 +1,8 @@
-# AGENTS.md
-
-## OVERVIEW
+# Contracts Package
 
 Shared TypeScript package with authored domain types and OpenAPI-generated API contracts.
+
+This file extends root [`AGENTS.md`](../../AGENTS.md) conventions. Read root first for global patterns, then return here for contracts-specific rules.
 
 ## STRUCTURE
 
@@ -38,8 +38,16 @@ packages/contracts/
 
 - Source: `apps/api/openapi.json` (FastAPI OpenAPI 3.1)
 - Tool: `openapi-typescript-codegen`
-- Output: `src/generated/api/`
-- Do NOT manually edit generated types
+- Output: `src/generated/api/` (models and index)
+- Entry: `src/generated/index.ts` (re-exports)
+- **Do NOT manually edit any file under `src/generated/`** — regenerate instead
+
+**Regeneration flow:**
+
+1. Modify FastAPI models in `apps/api/src/routes/*.py`
+2. Run `pnpm contracts:generate` from repo root
+3. Review changes: `git diff packages/contracts/src/generated/`
+4. Commit both `apps/api/openapi.json` and generated TypeScript files
 
 **Consumption**
 
@@ -55,5 +63,4 @@ packages/contracts/
 ## ANTI-PATTERNS
 
 - **Do NOT edit** `src/generated/**` — regenerate from FastAPI instead
-- **Do NOT modify** `packages/contracts/src/generated/server.ts` (auto-created by codegen)
-- **Do NOT duplicate** type definitions between `src/types/` and `src/generated/` — use authored types for business logic
+- **Do NOT duplicate** type definitions between `src/types/` and `src/generated/` — use authored types for business logic, import generated types for API contracts

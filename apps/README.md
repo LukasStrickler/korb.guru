@@ -1,6 +1,6 @@
 # Apps
 
-Overview of the four runnable applications in the Korb monorepo. Use this index to find setup and commands for each app; each subdirectory has its own **README** with getting-started steps and important commands.
+Overview of the five runnable applications in the Korb monorepo. Use this index to find setup and commands for each app; each subdirectory has its own **README** with getting-started steps and important commands.
 
 **Audience:** Developers working in the monorepo or running a single app.
 
@@ -11,6 +11,7 @@ Overview of the four runnable applications in the Korb monorepo. Use this index 
 | App                       | Tech                            | Purpose                                                                                           |
 | ------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------- |
 | **[mobile](./mobile/)**   | Expo (React Native), TypeScript | iOS/Android app — meal planning, shopping, auth (Clerk), realtime (Convex), analytics (PostHog).  |
+| **[website](./website/)** | Next.js 16, TypeScript          | Marketing site — landing pages, legal docs, and deep-link entry route (`/go/...`).                |
 | **[api](./api/)**         | FastAPI, Python (uv)            | HTTP API — heavy compute, integrations, webhooks, auth boundary (Clerk JWT), server-side PostHog. |
 | **[convex](./convex/)**   | Convex, TypeScript              | Realtime backend — collaborative state, reactive queries/mutations, Convex auth (Clerk).          |
 | **[scraper](./scraper/)** | Python (uv), Click CLI          | Ingestion CLI — mock/scrape data, output to stdout or ingest endpoint.                            |
@@ -24,7 +25,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts mobile (Expo), API (port 8000), Convex dev, scraper dev, and the contracts watcher. See [Local Development](../.docs/guides/local-dev.md) for ports and env vars.
+`pnpm dev` starts mobile (Expo), website (Next.js on port 3001), API (port 8000), Convex dev, scraper dev, and the contracts watcher. See [Local Development](../.docs/guides/local-dev.md) for ports, CI scope, and Turbo behavior.
 
 ## Running one app
 
@@ -32,6 +33,7 @@ From repo root (recommended):
 
 ```bash
 pnpm --filter @korb/mobile dev
+pnpm --filter @korb/website dev
 pnpm --filter @korb/api dev
 pnpm --filter @korb/convex dev
 pnpm --filter @korb/scraper dev
@@ -44,6 +46,7 @@ Or `cd` into the app and run the commands in its README (e.g. `pnpm dev` in mobi
 | App     | README                                   | Contents                             |
 | ------- | ---------------------------------------- | ------------------------------------ |
 | Mobile  | [mobile/README.md](./mobile/README.md)   | Expo app, env, iOS/Android, EAS      |
+| Website | [website/README.md](./website/README.md) | Next.js site, deep links, deployment |
 | API     | [api/README.md](./api/README.md)         | FastAPI, uv, routes, auth, health    |
 | Convex  | [convex/README.md](./convex/README.md)   | Convex dev/deploy, schema, functions |
 | Scraper | [scraper/README.md](./scraper/README.md) | CLI, mock mode, ingestion            |

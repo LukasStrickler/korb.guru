@@ -12,35 +12,48 @@ Expo React Native app for Korb Guru — meal planning and shared shopping. Use t
    pnpm install
    ```
 
-2. **Set environment variables** — Copy from root or create `apps/mobile/.env`:
+2. **Set environment variables** — Create `apps/mobile/.env` from root `.env.example`:
 
-   ```env
-   EXPO_PUBLIC_API_BASE_URL=http://localhost:8000
-   EXPO_PUBLIC_CONVEX_URL=<your-convex-dev-url>
-   EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-   EXPO_PUBLIC_POSTHOG_API_KEY=phc_...
-   EXPO_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+   ```bash
+   cp ../../.env.example .env
    ```
 
-   See root [.env.example](../../.env.example) and [Local Development](../../.docs/guides/local-dev.md). For Android emulator use `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000`.
+   Required variables:
+   - `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` — from [Clerk dashboard](https://dashboard.clerk.com)
+   - `EXPO_PUBLIC_CONVEX_URL` — from `pnpm --filter @korb/convex dev`
+   - `EXPO_PUBLIC_API_BASE_URL` — `http://localhost:8000` (iOS) or `http://10.0.2.2:8000` (Android)
 
-3. **Convex** — Start Convex dev (e.g. `pnpm dev` from root or `pnpm --filter @korb/convex dev`) and set `EXPO_PUBLIC_CONVEX_URL` to your dev deployment URL.
+   See [Local Development](../../.docs/guides/local-dev.md) for full env documentation.
+
+3. **Convex** — Start Convex dev (`pnpm --filter @korb/convex dev`) and copy the deployment URL to `EXPO_PUBLIC_CONVEX_URL`.
 
 ## Important commands
 
 Run from **repo root** with `pnpm --filter @korb/mobile <script>`, or from `apps/mobile` after setup.
 
-| Command                                     | Description                                        |
-| ------------------------------------------- | -------------------------------------------------- |
-| `pnpm --filter @korb/mobile dev`            | Start Expo dev server (Metro).                     |
-| `pnpm --filter @korb/mobile dev:ios`        | Start with iOS simulator.                          |
-| `pnpm --filter @korb/mobile dev:android`    | Start with Android emulator.                       |
-| `pnpm --filter @korb/mobile lint`           | Run ESLint.                                        |
-| `pnpm --filter @korb/mobile typecheck`      | TypeScript check.                                  |
-| `pnpm --filter @korb/mobile test`           | Run Vitest tests.                                  |
-| `pnpm --filter @korb/mobile build`          | Export for iOS (or use build:android / build:ios). |
-| `pnpm --filter @korb/mobile check`          | Lint + typecheck.                                  |
-| `pnpm --filter @korb/mobile check:security` | Mobile security checks.                            |
+| Command                                        | Description                                        |
+| ---------------------------------------------- | -------------------------------------------------- |
+| `pnpm --filter @korb/mobile dev`               | Start Expo dev server (Metro).                     |
+| `pnpm --filter @korb/mobile dev:ios`           | Start with iOS simulator.                          |
+| `pnpm --filter @korb/mobile dev:android`       | Start with Android emulator.                       |
+| `pnpm --filter @korb/mobile lint`              | Run ESLint.                                        |
+| `pnpm --filter @korb/mobile typecheck`         | TypeScript check.                                  |
+| `pnpm --filter @korb/mobile test`              | Run Jest tests (unit + integration).               |
+| `pnpm --filter @korb/mobile build`             | Export for iOS (or use build:android / build:ios). |
+| `pnpm --filter @korb/mobile check`             | Lint + typecheck.                                  |
+| `pnpm --filter @korb/mobile check:security`    | Security checks (secrets, auth layouts).           |
+| `pnpm --filter @korb/mobile test:unit`         | Unit tests only.                                   |
+| `pnpm --filter @korb/mobile test:integration`  | Integration tests only.                            |
+| `pnpm --filter @korb/mobile test:component`    | Component tests only.                              |
+| `pnpm --filter @korb/mobile test:watch`        | Watch mode (all tests).                            |
+| `pnpm --filter @korb/mobile test:coverage`     | Coverage report.                                   |
+| `pnpm --filter @korb/mobile test:quarantine`   | Quarantined (flaky) tests.                         |
+| `pnpm --filter @korb/mobile test:mutation`     | Mutation testing (Stryker).                        |
+| `pnpm --filter @korb/mobile test:e2e`          | E2E tests (Maestro).                               |
+| `pnpm --filter @korb/mobile storybook`         | Start Storybook dev server.                        |
+| `pnpm --filter @korb/mobile storybook:ios`     | Storybook with iOS simulator.                      |
+| `pnpm --filter @korb/mobile storybook:android` | Storybook with Android emulator.                   |
+| `pnpm --filter @korb/mobile clean`             | Clean build artifacts and deps.                    |
 
 From inside `apps/mobile`: use `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (same script names).
 

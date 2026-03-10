@@ -9,7 +9,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts the full stack: Expo mobile app, FastAPI backend, Convex realtime backend, scraper, and shared contracts watcher. See [Local Development](.docs/guides/local-dev.md) for ports, env vars, and troubleshooting.
+`pnpm dev` starts every workspace dev process: Expo mobile app, Next.js website, FastAPI backend, Convex realtime backend, scraper, and the shared contracts watcher. See [Local Development](.docs/guides/local-dev.md) for ports, CI scope, and Turbo tradeoffs, and [Authentication](.docs/guides/authentication.md) for sign-in setup.
 
 ## Project Structure
 
@@ -18,6 +18,7 @@ This is a pnpm + Turbo monorepo with a hybrid backend architecture. Each app has
 ```
 apps/
   mobile/             # Expo React Native mobile app (@korb/mobile)
+  website/            # Next.js marketing site (@korb/website)
   api/                # FastAPI Python backend (@korb/api)
   convex/             # Convex TypeScript backend (@korb/convex)
   scraper/            # Python scraper CLI (@korb/scraper)
@@ -28,13 +29,13 @@ packages/
 
 ## Service Ownership
 
-| Concern                                    | Owner   | Why                                          |
-| ------------------------------------------ | ------- | -------------------------------------------- |
-| Realtime collaborative state (UI updates)  | Convex  | Low-latency reactive queries                 |
-| Client reads/writes that update UI live    | Convex  | Mobile consumes Convex directly              |
-| Heavy compute, orchestration, integrations | FastAPI | Python ecosystem, async HTTP                 |
-| Webhooks, scheduled jobs, ingestion        | FastAPI | Long-running tasks outside Convex            |
-| Scraping and data ingestion                | Scraper | Separate Python CLI, feeds FastAPI or Convex |
+| Concern                                    | Owner   | Why                                              |
+| ------------------------------------------ | ------- | ------------------------------------------------ |
+| Realtime collaborative state (UI updates)  | Convex  | Low-latency reactive queries                     |
+| Client reads/writes that update UI live    | Convex  | Mobile consumes Convex directly                  |
+| Heavy compute, orchestration, integrations | FastAPI | Python ecosystem, async HTTP                     |
+| Webhooks, scheduled jobs, ingestion API    | FastAPI | Long-running backend flows and ingest entrypoint |
+| Scraping and ingestion payload generation  | Scraper | Separate Python CLI, feeds FastAPI or Convex     |
 
 See [FastAPI <-> Convex Interaction](.docs/architecture/fastapi-convex-interaction.md) for cross-service patterns.
 
@@ -57,6 +58,7 @@ pnpm dev
 
 # Run one service only
 pnpm --filter @korb/mobile dev
+pnpm --filter @korb/website dev
 pnpm --filter @korb/api dev
 pnpm --filter @korb/convex dev
 pnpm --filter @korb/scraper dev

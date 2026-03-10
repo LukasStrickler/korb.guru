@@ -26,22 +26,22 @@ public/
 
 ## WHERE TO LOOK
 
-| Task                    | Location                   |
-| ----------------------- | -------------------------- |
-| Add static page         | `app/[page]/page.tsx`      |
-| Add component           | `components/[name].tsx`    |
-| Add shadcn primitive    | `components/ui/[name].tsx` |
-| Update deep-link scheme | `lib/app-linking.ts`       |
-| Update metadata         | `app/layout.tsx`           |
-| Style/theme changes     | `app/globals.css`          |
-| Well-known files        | `public/.well-known/`      |
+| Task                    | Location                                            |
+| ----------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Add static page         | `app/[page]/page.tsx`                               |
+| Add component           | `components/[name].tsx`                             |
+| Add shadcn primitive    | `components/ui/[name].tsx`                          |
+| Update deep-link scheme | `lib/app-linking.ts`                                |
+| Update metadata         | `app/layout.tsx`                                    |
+| Style/theme changes     | `app/globals.css`                                   |
+| Well-known files        | `public/.well-known/`                               |
+| Add/update env var      | **Root** `.env.example` (and root `.env` for local) | Website receives env from root when run via `pnpm dev:website` from repo root. See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
 
 ## CONVENTIONS
 
 **App Router**
 
 - File-based routing in `app/` (no `pages/`)
-- Route groups for organization: `(marketing)/`
 - Catch-all routes: `[...slug]/page.tsx`
 
 **shadcn/ui**
@@ -75,3 +75,35 @@ public/
 - Do not edit `.next/` or `next-env.d.ts` (generated)
 - Do not hardcode store URLs (use placeholders, replace before deploy)
 - Do not forget to update well-known files with real Team ID / SHA256 fingerprints
+
+## COMMANDS
+
+| Command          | Description                               |
+| ---------------- | ----------------------------------------- |
+| `pnpm dev`       | Start dev server at http://localhost:3001 |
+| `pnpm build`     | Build for production                      |
+| `pnpm lint`      | Run ESLint                                |
+| `pnpm typecheck` | Run TypeScript check                      |
+| `pnpm test`      | Placeholder — no tests yet                |
+
+## QUALITY EXPECTATIONS
+
+### Current State
+
+| Aspect    | Status   | Notes                      |
+| --------- | -------- | -------------------------- |
+| Lint      | Active   | ESLint with Next.js config |
+| Typecheck | Active   | TypeScript strict mode     |
+| Tests     | **None** | Placeholder script only    |
+
+### Known Gaps
+
+- **No automated tests**: The website has no unit, integration, or E2E tests. The `test` script in `package.json` is a placeholder (`echo 'No tests yet'`).
+- **No visual regression testing**: Marketing pages are not covered by screenshot tests.
+- **No accessibility testing**: Automated a11y checks are not configured.
+
+When adding features, rely on manual verification and type safety. If adding tests later, consider:
+
+- **Unit**: Vitest for utility functions
+- **Component**: Storybook or React Testing Library for UI components
+- **E2E**: Playwright for critical user flows (landing → download)

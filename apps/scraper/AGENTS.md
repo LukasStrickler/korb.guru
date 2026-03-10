@@ -15,12 +15,13 @@ pyproject.toml   # Scripts: scraper, korb-scraper
 
 ## WHERE TO LOOK
 
-| Task              | Location                                                      |
-| ----------------- | ------------------------------------------------------------- |
-| Add CLI command   | `src/cli.py` — add `@click.option` + param to `main()`        |
-| Add mock data     | `src/ingestion.py` — `get_mock_recipes()`, `get_mock_users()` |
-| Add output format | `src/ingestion.py` — `serialize_records()`                    |
-| Add tests         | `tests/test_*.py` — pytest functions                          |
+| Task               | Location                                                      |
+| ------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add CLI command    | `src/cli.py` — add `@click.option` + param to `main()`        |
+| Add mock data      | `src/ingestion.py` — `get_mock_recipes()`, `get_mock_users()` |
+| Add output format  | `src/ingestion.py` — `serialize_records()`                    |
+| Add tests          | `tests/test_*.py` — pytest functions                          |
+| Add/update env var | **Root** `.env.example` (and root `.env` for local)           | Scraper receives env from root when run via root scripts (e.g. `INGEST_API_KEY`). See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
 
 ## CONVENTIONS
 
@@ -44,6 +45,37 @@ pyproject.toml   # Scripts: scraper, korb-scraper
 - Lint/format: `ruff` (line-length 88, py311)
 - Test: `pytest`
 - Commands: `uv run scraper`, `uv run ruff check src`, `uv run pytest`
+
+## Service ownership
+
+Scraper feeds **one** canonical owner per entity per flow:
+
+- **FastAPI-owned entities** → POST to FastAPI `/ingest` (or specific endpoint)
+- **Convex-owned entities** → POST to Convex HTTP endpoint
+- **Avoid dual writes** of the same entity in one run
+
+Scraper does NOT:
+
+- Own any persistent data (stateless CLI)
+- Handle retries or queuing (caller responsibility)
+- Validate against shared contracts (out of scope for scaffold)
+
+See [FastAPI ↔ Convex](../../.docs/architecture/fastapi-convex-interaction.md) for service boundaries.
+
+## Scaffold status
+
+Current implementation:
+
+- Mock data only (`get_mock_recipes()`, `get_mock_users()`)
+- Synchronous HTTP via `urllib.request`
+- No real scraping from external sources
+
+Add when moving beyond scaffold:
+
+- Real scraping logic (BeautifulSoup, Playwright, etc.)
+- Async HTTP for concurrent requests
+- Retry logic with exponential backoff
+- Schema validation before POST
 
 ## ANTI-PATTERNS
 

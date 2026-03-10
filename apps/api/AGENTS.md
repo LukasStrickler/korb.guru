@@ -26,13 +26,14 @@ scripts/
 
 ## WHERE TO LOOK
 
-| Task               | Location                    | Notes                                                              |
-| ------------------ | --------------------------- | ------------------------------------------------------------------ |
-| Add route          | `src/routes/<area>.py`      | Create router, export in `__init__.py`, include in `main.py`       |
-| Add auth           | `src/auth.py`               | Use `require_clerk_auth` (user) or `require_ingest_auth` (service) |
-| Add analytics      | `src/analytics.py`          | Use `capture()` with `distinct_id="api"`                           |
-| Update rate limits | `src/ingest_ratelimit.py`   | Adjust `DEFAULT_BASE_SEC`, `DEFAULT_MAX_EXPONENT`                  |
-| Export OpenAPI     | `scripts/export_openapi.py` | Run via `pnpm contracts:generate`                                  |
+| Task               | Location                                            | Notes                                                                                                                                        |
+| ------------------ | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add route          | `src/routes/<area>.py`                              | Create router, export in `__init__.py`, include in `main.py`                                                                                 |
+| Add auth           | `src/auth.py`                                       | Use `require_clerk_auth` (user) or `require_ingest_auth` (service)                                                                           |
+| Add analytics      | `src/analytics.py`                                  | Use `capture()` with `distinct_id="api"`                                                                                                     |
+| Update rate limits | `src/ingest_ratelimit.py`                           | Adjust `DEFAULT_BASE_SEC`, `DEFAULT_MAX_EXPONENT`                                                                                            |
+| Export OpenAPI     | `scripts/export_openapi.py`                         | Run via `pnpm contracts:generate`                                                                                                            |
+| Add/update env var | **Root** `.env.example` (and root `.env` for local) | API reads from root `.env` when run standalone or via root `pnpm dev:api`. See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
 
 ## CONVENTIONS
 
@@ -41,8 +42,9 @@ scripts/
 - One module per domain in `src/routes/`, export in `routes/__init__.py`
 - Register in `src/main.py` with `app.include_router()`
   **Auth**
-- `require_clerk_auth`: Bearer token, placeholder in dev, TODO: JWKS verify in prod
-- `require_ingest_auth`: API key + per-IP exponential backoff via `InMemoryIngestBackoff`
+
+- `require_clerk_auth`: Bearer token, placeholder in dev (accepts any Bearer if JWKS not configured), JWKS verify in prod (set `CLERK_JWT_ISSUER_DOMAIN` or `CLERK_JWKS_URL`)
+- `require_ingest_auth`: API key + per-IP exponential backoff via `InMemoryIngestBackoff`. Dev: allows all if key unset. Prod: set `INGEST_API_KEY`
 - Constant-time comparison for keys (hmac.compare_digest)
   **Middleware**
 - PostHog flush after every request (`@app.middleware("http")`)
@@ -69,3 +71,30 @@ scripts/
 - Do not return stack traces in HTTP responses (use generic 500 message)
 - Do not edit `openapi.json` directly (regenerate from FastAPI)
 - Do not skip constant-time comparison for secret keys (timing attacks)
+- Do not assume auth is production-ready without configuring JWKS (see Dev vs Production below)
+
+## Dev vs Production
+
+This scaffold includes dev-only behaviors that must be hardened for production:
+
+| Component                    | Dev Placeholder                                             | Production Implementation                                                           |
+| ---------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Clerk JWT verification       | Accepts any Bearer token if `CLERK_JWT_ISSUER_DOMAIN` unset | Configure `CLERK_JWT_ISSUER_DOMAIN` or `CLERK_JWKS_URL` for RS256 JWKS verification |
+| Ingest API key               | Allows all requests if `INGEST_API_KEY` unset               | Set `INGEST_API_KEY`; uses constant-time comparison                                 |
+| User deletion (`DELETE /me`) | Returns 200 stub                                            | Call Clerk Backend API with `CLERK_SECRET_KEY`; delete API-held user data           |
+| PostHog analytics            | No-op if key unset or placeholder                           | Set `POSTHOG_API_KEY` for server-side event capture                                 |
+
+**When adding auth to new routes:**
+
+1. Use `require_clerk_auth` for user-facing routes
+2. Document the placeholder behavior in route docstrings
+3. Add production requirements to the table above
+4. Update README.md Dev vs Production section
+
+**Service boundaries:**
+
+- FastAPI owns: heavy compute, webhooks, auth boundary (JWT verification), external integrations
+- Convex owns: realtime UI state, collaborative data, reactive queries
+- Scraper owns: data ingestion, feeds into FastAPI or Convex
+
+See [FastAPI ↔ Convex](../../.docs/architecture/fastapi-convex-interaction.md) for cross-service patterns.

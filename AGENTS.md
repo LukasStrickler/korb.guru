@@ -8,6 +8,28 @@
 
 Korb Guru — meal planning and shared shopping. Hybrid monorepo: Expo mobile, Next.js website, Convex realtime backend, FastAPI compute backend, Python scraper. Single source of API types via OpenAPI → TypeScript codegen.
 
+## AGENT ONBOARDING
+
+Start here, then drill down as needed.
+
+| Step | File                             | Purpose                                            |
+| ---- | -------------------------------- | -------------------------------------------------- |
+| 1    | **This file** (root `AGENTS.md`) | Global conventions, structure, commands            |
+| 2    | `.docs/README.md`                | Documentation index and guides                     |
+| 3    | Package `AGENTS.md`              | Package-specific rules (mobile, api, convex, etc.) |
+| 4    | `.docs/guides/<topic>.md`        | Deep dives (auth, testing, contracts)              |
+
+**When working on:**
+
+- Mobile UI → Read `apps/mobile/AGENTS.md` after this file
+- API routes → Read `apps/api/AGENTS.md` after this file
+- Convex functions → Read `apps/convex/AGENTS.md` after this file
+- Shared types → Read `packages/contracts/AGENTS.md`
+
+Root conventions apply everywhere. Package files extend, do not replace.
+
+> **All agents MUST always use the TDD skill when working on, or adding, new features—this is critical for quality and codebase safety.**
+
 ## STRUCTURE
 
 ```
@@ -26,15 +48,16 @@ packages/
 
 ## WHERE TO LOOK
 
-| Task                    | Location                                   | Notes                                                              |
-| ----------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
-| **Add mobile screen**   | `apps/mobile/src/app/(home)/` or `(auth)/` | File-based routing; extend `go/[...slug].tsx` for deep links       |
-| **Add API route**       | `apps/api/src/routes/`                     | Add module, export in `__init__.py`, register in `main.py`         |
-| **Add Convex function** | `apps/convex/convex/`                      | Query/mutation; schema in `schema.ts`                              |
-| **Add shared type**     | `packages/contracts/src/types/`            | Domain types; generated types in `src/generated/` (do not edit)    |
-| **Add scraper logic**   | `apps/scraper/src/`                        | Click CLI; output to stdout or POST                                |
-| **Update docs**         | `.docs/`                                   | Guides, reference, architecture, ADRs, runbooks (deploy, incident) |
-| **Agent skills**        | `.agents/skills/*/SKILL.md`                | TDD, git-commit, code-quality, resolve-pr-comments, etc.           |
+| Task                      | Location                                        | Notes                                                                                                                           |
+| ------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Add mobile screen**     | `apps/mobile/src/app/(home)/` or `(auth)/`      | File-based routing; extend `go/[...slug].tsx` for deep links                                                                    |
+| **Add API route**         | `apps/api/src/routes/`                          | Add module, export in `__init__.py`, register in `main.py`                                                                      |
+| **Add Convex function**   | `apps/convex/convex/`                           | Query/mutation; schema in `schema.ts`                                                                                           |
+| **Add shared type**       | `packages/contracts/src/types/`                 | Domain types; generated types in `src/generated/` (do not edit)                                                                 |
+| **Add scraper logic**     | `apps/scraper/src/`                             | Click CLI; output to stdout or POST                                                                                             |
+| **Update docs**           | `.docs/`                                        | Guides, reference, architecture, ADRs, runbooks (deploy, incident)                                                              |
+| **Update shared config**  | `packages/config/`                              | ESLint, Prettier, tsconfig — see `packages/config/AGENTS.md`                                                                    |
+| **Add or update env var** | Root `.env.example` (and root `.env` for local) | Single place for local dev; root dev scripts inject via dotenv-cli. See [.docs/guides/local-dev.md](.docs/guides/local-dev.md). |
 
 ## CODE MAP
 
@@ -80,6 +103,17 @@ packages/
 - Location: `.docs/` (guides, reference, architecture, ADRs)
 - Not `docs/` (dotfolder)
 
+**Environment variables**
+
+- Add or update env vars in **root** `.env.example` (and in root `.env` for local use). Root dev scripts (`pnpm dev`, `pnpm dev:mobile`, etc.) load the root `.env` via dotenv-cli so all apps receive the same vars.
+- Do not add env vars only in app-level `.env.example` without updating the root file. Deployment uses platform-provided env, not the root file. See [.docs/guides/local-dev.md](.docs/guides/local-dev.md).
+
+**Agent skills**
+
+- Repo-local skill files and scripts always resolve from repo root as `.agents/skills/<skill>/...`
+- Never use `skills/...` in this repository; that alias is ambiguous here
+- If a skill is not vendored under `.agents/skills/` (for example `docs-check`), invoke it with the `skill` tool and fall back to manual `git diff`-based review if it is unavailable in the current environment
+
 ## ANTI-PATTERNS (THIS PROJECT)
 
 **Security**
@@ -96,6 +130,8 @@ packages/
 **Generated files**
 
 - Do not edit: `convex/_generated/`, `packages/contracts/src/generated/**`, `apps/website/next-env.d.ts`, `apps/mobile/expo-env.d.ts`
+- Regenerate Convex types: `convex dev` (reactive)
+- Regenerate API contracts: `pnpm contracts:generate` (see [Contracts guide](.docs/guides/contracts.md))
 
 **Analytics**
 
@@ -144,10 +180,10 @@ packages/
 ```bash
 # Root (all services)
 pnpm install                # Install dependencies
-pnpm dev                    # Start all apps (mobile, api, convex, scraper, contracts watch)
+pnpm dev                    # Start every workspace dev process (mobile, website, api, convex, scraper, contracts)
 pnpm build                  # Build all (mobile, website, contracts)
 pnpm check                  # Full quality pass: format:check + lint + typecheck (use before commit)
-pnpm test                   # Run tests (Jest in mobile, Vitest in other packages, pytest in api/scraper)
+pnpm test # Run tests (Jest in mobile, Vitest in contracts/convex, pytest in api/scraper; website has placeholder)
 pnpm lint                   # Lint all
 pnpm typecheck              # Typecheck all
 pnpm format                 # Format all with Prettier (root only)
@@ -158,11 +194,11 @@ pnpm clean                  # Clean all + node_modules
 pnpm contracts:generate     # Export OpenAPI from API → generate TS → format
 
 # Single app (from root)
-pnpm --filter @korb/mobile dev
-pnpm --filter @korb/api dev
-pnpm --filter @korb/convex dev
+pnpm dev:mobile
+pnpm dev:api
+pnpm dev:convex
+pnpm dev:website
 pnpm --filter @korb/scraper dev
-pnpm --filter @korb/website dev
 
 # Mobile-specific
 pnpm --filter @korb/mobile check           # Lint + typecheck
@@ -174,6 +210,7 @@ pnpm --filter @korb/mobile build:android   # Export Android bundle
 pnpm --filter @korb/mobile test            # Main suite (unit + integration)
 pnpm --filter @korb/mobile test:unit       # Unit only
 pnpm --filter @korb/mobile test:integration # Integration only
+pnpm --filter @korb/mobile test:component  # Component tests only
 pnpm --filter @korb/mobile test:coverage   # With coverage
 pnpm --filter @korb/mobile test:quarantine # Quarantined (flaky) tests only
 pnpm --filter @korb/mobile test:mutation   # Stryker mutation testing
@@ -228,12 +265,18 @@ EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000
 
 **CI**
 
-- Jobs: install → format:check → lint → typecheck → contracts:generate → Python ruff → mobile build → test → API health
-- Note: Tests run in CI (test job)
+- Jobs: `install` | `lint` (needs `install`) | `test` (needs `install`) | `mobile-build` (needs `install`) | `python-lint-api` | `python-lint-scraper` | `api-health`
+- `lint` job runs `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm contracts:generate`, then fails on contract drift
+- `test` runs `pnpm test` for the whole monorepo; that includes the website's placeholder `test` script, so CI does not yet enforce real website test coverage
+- CI does not run a website build job today; only the mobile export build is enforced in GitHub Actions
+- Turbo remote cache is not wired today (`TURBO_TOKEN` / `TURBO_TEAM` are absent) and CI does not use affected-only execution (`--affected` is not configured)
 
 **Contract pipeline**
 
 1. Add/modify Pydantic models in `apps/api/src/routes/*.py`
 2. Run `pnpm contracts:generate` from root
-3. Generated types appear in `packages/contracts/src/generated/api/`
+3. Generated types appear in `packages/contracts/src/generated/api/` and `packages/contracts/src/generated/index.ts`
 4. Import from `@korb/contracts` in mobile
+5. Commit both `apps/api/openapi.json` and generated TypeScript files
+
+See [Contracts and codegen guide](.docs/guides/contracts.md) for full details including CI drift detection.

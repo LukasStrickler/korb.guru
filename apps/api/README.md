@@ -15,17 +15,32 @@ FastAPI Python backend for Korb — heavy compute, integrations, webhooks, and t
 
    Or from repo root: `uv sync --project apps/api`.
 
-2. **Set environment variables** — Create `apps/api/.env` (or use root `.env`). Minimum for local dev:
-   ```env
-   # Optional: leave unset for dev placeholder auth
-   CLERK_SECRET_KEY=sk_test_...
-   # Optional: server-side PostHog
-   POSTHOG_API_KEY=phc_...
-   POSTHOG_HOST=https://app.posthog.com
-   # CORS: comma-separated origins (e.g. http://localhost:8081,http://localhost:3000)
-   CORS_ORIGINS=http://localhost:8081,http://localhost:3000
+2. **Set environment variables** — Create `apps/api/.env` from root `.env.example`:
+
+   ```bash
+   cp ../../.env.example .env
    ```
-   See root [.env.example](../../.env.example). For DB-backed features later, set `DATABASE_URL`. CORS is configured from `CORS_ORIGINS`; when unset or empty, no origins are allowed.
+
+   All API environment variables are optional for local development (dev placeholders work). Key variables:
+   - `CLERK_SECRET_KEY` — Server-side Clerk operations (optional in dev)
+   - `POSTHOG_API_KEY` — Server-side analytics (optional)
+   - `CORS_ORIGINS` — Comma-separated allowed origins (e.g., `http://localhost:8081,http://localhost:3000`)
+   - `INGEST_API_KEY` — Protects POST /ingest (dev allows all if unset)
+
+   See [Local Development](../../.docs/guides/local-dev.md) and [Auth Reference](../../.docs/reference/auth.md) for full documentation.
+
+## Dev vs Production Boundaries
+
+This API is scaffolded for development. Some behaviors are placeholders that must be hardened for production:
+
+| Feature            | Dev Behavior                                                | Production Requirement                                                        |
+| ------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Clerk JWT auth** | Accepts any Bearer token if `CLERK_JWT_ISSUER_DOMAIN` unset | Set `CLERK_JWT_ISSUER_DOMAIN` or `CLERK_JWKS_URL` to enable JWKS verification |
+| **Ingest API key** | Allows all requests if `INGEST_API_KEY` unset               | Set `INGEST_API_KEY` and use constant-time comparison                         |
+| **User deletion**  | Returns 200 stub; no actual deletion                        | Call Clerk Backend API with `CLERK_SECRET_KEY`; delete API-held data          |
+| **PostHog**        | No-op if key unset or placeholder                           | Set `POSTHOG_API_KEY` for server-side analytics                               |
+
+**Service ownership reminder:** FastAPI handles heavy compute, webhooks, and the auth boundary. Realtime UI state lives in Convex. See [FastAPI ↔ Convex](../../.docs/architecture/fastapi-convex-interaction.md).
 
 ## Important commands
 
@@ -57,7 +72,7 @@ When the server is running, open http://localhost:8000/docs for the full OpenAPI
 | ------------------ | ---------------------------------------------------------------------------------------- |
 | `src/main.py`      | FastAPI app, CORS from `CORS_ORIGINS` env, middleware (request ID, access log, PostHog). |
 | `src/routes/`      | Route modules (health, hello, me, ingest).                                               |
-| `src/auth.py`      | Clerk JWT auth boundary (placeholder in dev).                                            |
+| `src/auth.py`      | Clerk JWT auth boundary (placeholder in dev, JWKS verify in prod).                       |
 | `src/analytics.py` | PostHog server-side capture.                                                             |
 | `scripts/`         | OpenAPI export for `packages/contracts`.                                                 |
 | `tests/`           | Pytest tests.                                                                            |
@@ -68,5 +83,5 @@ When the server is running, open http://localhost:8000/docs for the full OpenAPI
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | [Local Development](../../.docs/guides/local-dev.md)                       | Port map.                                                         |
 | [Contracts and codegen](../../.docs/guides/contracts.md)                   | When to run `pnpm contracts:generate`, CI drift, generated files. |
-| [Auth Reference](../../.docs/reference/auth.md)                            | Protected routes, env.                                            |
+| [Auth Reference](../../.docs/reference/auth.md)                            | Protected routes, env, dev vs production setup.                   |
 | [FastAPI ↔ Convex](../../.docs/architecture/fastapi-convex-interaction.md) | When API calls Convex.                                            |

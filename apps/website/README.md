@@ -51,3 +51,17 @@ The mobile app (`apps/mobile/app.json`) is already configured with `ios.associat
 
 - Replace `#app-store` and `#play-store` on the landing and `/go` pages with your real App Store and Google Play URLs when the app is published.
 - Optional: in `app/layout.tsx`, uncomment and set the `apple-itunes-app` meta tag with your App Store ID for the Smart App Banner on iOS.
+
+## Commands
+
+| Command                                 | Description                               |
+| --------------------------------------- | ----------------------------------------- |
+| `pnpm --filter @korb/website dev`       | Start dev server at http://localhost:3001 |
+| `pnpm --filter @korb/website build`     | Build for production                      |
+| `pnpm --filter @korb/website lint`      | Run ESLint                                |
+| `pnpm --filter @korb/website typecheck` | Run TypeScript check                      |
+| `pnpm --filter @korb/website test`      | Placeholder — no tests yet                |
+
+## Known Gaps
+
+- **Tests**: The website currently has no automated tests. The `test` script is a placeholder that outputs "No tests yet". Testing strategy for the marketing site is deferred until the UI stabilizes.

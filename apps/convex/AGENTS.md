@@ -22,13 +22,14 @@ convex/
 
 ## WHERE TO LOOK
 
-| Task               | Location                | Notes                                           |
-| ------------------ | ----------------------- | ----------------------------------------------- |
-| Add table          | `convex/schema.ts`      | Use `defineTable`, add indexes for queries      |
-| Add query/mutation | `convex/*.ts`           | Export with `query({...})` or `mutation({...})` |
-| Auth integration   | `convex/auth.config.ts` | Clerk JWT issuer domain from env                |
-| HTTP webhook       | `convex/http.ts`        | `httpAction` with `httpRouter()`                |
-| Test function      | `convex/*.test.ts`      | Vitest, co-located with source                  |
+| Task               | Location                                            | Notes                                                                                                                                          |
+| ------------------ | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add table          | `convex/schema.ts`                                  | Use `defineTable`, add indexes for queries                                                                                                     |
+| Add query/mutation | `convex/*.ts`                                       | Export with `query({...})` or `mutation({...})`                                                                                                |
+| Auth integration   | `convex/auth.config.ts`                             | Clerk JWT issuer domain from env                                                                                                               |
+| HTTP webhook       | `convex/http.ts`                                    | `httpAction` with `httpRouter()`                                                                                                               |
+| Test function      | `convex/*.test.ts`                                  | Vitest, co-located with source                                                                                                                 |
+| Add/update env var | **Root** `.env.example` (and root `.env` for local) | Convex receives env from root when run via `pnpm dev:convex` from repo root. See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
 
 ## CONVENTIONS
 
@@ -55,6 +56,37 @@ convex/
 
 - Co-located `*.test.ts` files, run with `vitest`
 - Mock Convex context or test against dev deployment
+
+## Service ownership
+
+Convex owns:
+
+- Realtime collaborative state (mobile UI subscriptions)
+- Client reads/writes that update UI live
+- Auth-gated queries and mutations via Clerk JWT
+- HTTP webhooks (Clerk user events)
+
+FastAPI owns:
+
+- Heavy compute, orchestration, external integrations
+- Webhooks from third-party services
+- Scheduled jobs and long-running tasks
+
+Scraper owns:
+
+- Data ingestion (outputs to stdout, file, or POSTs to API/Convex)
+
+Cross-service patterns: [FastAPI ↔ Convex](../../.docs/architecture/fastapi-convex-interaction.md)
+
+## Production caveats
+
+The following are scaffold-only and need production hardening:
+
+| Caveat                         | File              | Notes                                                     |
+| ------------------------------ | ----------------- | --------------------------------------------------------- |
+| Webhook signature verification | `convex/http.ts`  | Clerk webhooks need Svix signature verification.          |
+| User cleanup on deletion       | `convex/http.ts`  | Cascade delete for user recipes and data not implemented. |
+| List all users endpoint        | `convex/users.ts` | Restrict or remove for production.                        |
 
 ## ANTI-PATTERNS
 
