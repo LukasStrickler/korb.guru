@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export type { ExampleItem } from "./models/ExampleItem";
 export type { HTTPValidationError } from "./models/HTTPValidationError";
 export type { IngestRequest } from "./models/IngestRequest";
 export type { IngestResponse } from "./models/IngestResponse";

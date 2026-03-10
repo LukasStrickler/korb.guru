@@ -41,6 +41,30 @@
         }
       }
     },
+    "/examples": {
+      "get": {
+        "tags": ["examples"],
+        "summary": "List Examples",
+        "description": "Return all rows from the example table (Postgres).\nSchema: apps/api/alembic. Seed: pnpm db:seed:postgres.",
+        "operationId": "list_examples_examples_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExampleItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Examples Examples Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingest": {
       "post": {
         "tags": ["ingest"],
@@ -150,6 +174,27 @@
   },
   "components": {
     "schemas": {
+      "ExampleItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "created_at"],
+        "title": "ExampleItem",
+        "description": "One row from the example table."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {

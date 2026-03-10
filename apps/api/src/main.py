@@ -22,7 +22,13 @@ from fastapi.responses import JSONResponse  # noqa: E402
 from .analytics import flush as posthog_flush  # noqa: E402
 from .logging_config import configure_logging  # noqa: E402
 from .request_context import set_request_id  # noqa: E402
-from .routes import health_router, hello_router, ingest_router, me_router  # noqa: E402
+from .routes import (  # noqa: E402
+    examples_router,
+    health_router,
+    hello_router,
+    ingest_router,
+    me_router,
+)
 
 configure_logging()
 _logger = logging.getLogger(__name__)
@@ -46,6 +52,7 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(hello_router)
+app.include_router(examples_router)
 app.include_router(ingest_router)
 app.include_router(me_router)
 

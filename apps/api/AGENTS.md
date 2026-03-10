@@ -22,7 +22,12 @@ src/
     ingest.py          # POST /ingest (API key auth)
 scripts/
   export_openapi.py    # Export OpenAPI → openapi.json
+alembic/               # Postgres migrations (single source of truth for schema)
+  env.py               # Reads DATABASE_URL from env
+  versions/            # Migration scripts; add new revisions here
 ```
+
+API uses `DATABASE_URL` and `QDRANT_URL` from env; local stack is root `compose.yml` — see [Database guide](../../.docs/guides/database.md).
 
 ## WHERE TO LOOK
 
@@ -33,6 +38,7 @@ scripts/
 | Add analytics      | `src/analytics.py`                                  | Use `capture()` with `distinct_id="api"`                                                                                                     |
 | Update rate limits | `src/ingest_ratelimit.py`                           | Adjust `DEFAULT_BASE_SEC`, `DEFAULT_MAX_EXPONENT`                                                                                            |
 | Export OpenAPI     | `scripts/export_openapi.py`                         | Run via `pnpm contracts:generate`                                                                                                            |
+| Add DB migration   | `alembic/versions/`                                 | Add revision file; run `pnpm db:migrate` from root. See [Database guide](../../.docs/guides/database.md).                                    |
 | Add/update env var | **Root** `.env.example` (and root `.env` for local) | API reads from root `.env` when run standalone or via root `pnpm dev:api`. See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
 
 ## CONVENTIONS
