@@ -1,5 +1,6 @@
 import { SignOutButton } from "@/components/sign-out-button";
-import { ApiError, deleteAccount, fetchMe } from "@/lib/api";
+import { ApiError, deleteAccount, fetchExamples, fetchMe } from "@/lib/api";
+import type { ExampleItem } from "@korb/contracts";
 import { identifyUser } from "@/lib/posthog";
 import { useAuth } from "@clerk/clerk-expo";
 import { useClerk } from "@clerk/clerk-expo";
@@ -56,6 +57,11 @@ export default function HomeScreen() {
   );
   const [apiCheckMessage, setApiCheckMessage] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [examples, setExamples] = useState<ExampleItem[] | null>(null);
+  const [examplesLoad, setExamplesLoad] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+  const [examplesError, setExamplesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user === undefined) return;
@@ -242,6 +248,63 @@ export default function HomeScreen() {
             )}
             {apiCheck === "error" && apiCheckMessage && (
               <Text className="text-sm text-red-600">{apiCheckMessage}</Text>
+            )}
+          </View>
+
+          <View className="gap-2">
+            <Text className="text-sm font-semibold text-gray-700">
+              Example from DB
+            </Text>
+            <Pressable
+              onPress={async () => {
+                setExamplesLoad("loading");
+                setExamplesError(null);
+                setExamples(null);
+                try {
+                  const data = await fetchExamples();
+                  setExamples(data);
+                  setExamplesLoad("ok");
+                } catch (e) {
+                  setExamplesLoad("error");
+                  setExamplesError(
+                    e instanceof ApiError && e.detail
+                      ? e.detail
+                      : e instanceof Error
+                        ? e.message
+                        : "Request failed",
+                  );
+                }
+              }}
+              disabled={examplesLoad === "loading"}
+              className="rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 active:opacity-80"
+            >
+              {examplesLoad === "loading" ? (
+                <ActivityIndicator size="small" color="#0a7ea4" />
+              ) : (
+                <Text className="text-center text-base text-gray-700">
+                  Load examples from API (Postgres)
+                </Text>
+              )}
+            </Pressable>
+            {examplesLoad === "ok" && examples && examples.length > 0 && (
+              <View className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <Text className="text-xs font-medium text-gray-500 mb-1">
+                  From example table:
+                </Text>
+                {examples.map((row) => (
+                  <Text key={row.id} className="text-sm text-gray-800">
+                    {row.id}: {row.name}
+                  </Text>
+                ))}
+              </View>
+            )}
+            {examplesLoad === "ok" && examples && examples.length === 0 && (
+              <Text className="text-sm text-gray-500">
+                No rows. Run pnpm db:seed:postgres.
+              </Text>
+            )}
+            {examplesLoad === "error" && examplesError && (
+              <Text className="text-sm text-red-600">{examplesError}</Text>
             )}
           </View>
 
