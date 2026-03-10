@@ -20,7 +20,25 @@
     "contracts:openapi": "uv run --project apps/api python apps/api/scripts/export_openapi.py",
     "contracts:generate": "pnpm contracts:openapi && prettier --write apps/api/openapi.json && pnpm --filter @korb/contracts generate:api && prettier --write \"packages/contracts/src/generated/api/**/*.ts\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:up": "docker compose -f compose.yml up -d",
+    "db:ready": "dotenv -- node scripts/db-ready.mjs",
+    "db:up:postgres": "docker compose -f compose.yml up -d postgres",
+    "db:up:qdrant": "docker compose -f compose.yml up -d qdrant",
+    "db:down": "docker compose -f compose.yml down",
+    "db:down:postgres": "docker compose -f compose.yml stop postgres",
+    "db:down:qdrant": "docker compose -f compose.yml stop qdrant",
+    "db:migrate": "dotenv -- node scripts/db-assert-local.mjs migrate && dotenv -- bash -c 'cd apps/api && uv run alembic upgrade head'",
+    "db:migrate:generate": "dotenv -- node scripts/db-migrate-generate.mjs",
+    "db:seed": "pnpm db:seed:postgres && pnpm db:seed:qdrant",
+    "db:seed:postgres": "node scripts/db-seed-postgres.mjs",
+    "db:seed:qdrant": "dotenv -- node scripts/db-assert-local.mjs seed:qdrant && dotenv -- node apps/qdrant/scripts/seed-qdrant.mjs",
+    "db:reset": "dotenv -- node scripts/db-reset.mjs",
+    "db:reset:postgres": "docker compose -f compose.yml stop postgres && docker volume rm korb-db_postgres_data 2>/dev/null; docker compose -f compose.yml up -d postgres && sleep 4 && pnpm db:migrate && pnpm db:seed:postgres",
+    "db:reset:qdrant": "docker compose -f compose.yml stop qdrant && docker volume rm korb-db_qdrant_data 2>/dev/null; docker compose -f compose.yml up -d qdrant && sleep 6 && pnpm db:seed:qdrant",
+    "db:logs": "docker compose -f compose.yml logs -f",
+    "db:logs:postgres": "docker compose -f compose.yml logs -f postgres",
+    "db:logs:qdrant": "docker compose -f compose.yml logs -f qdrant"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,md}": [
