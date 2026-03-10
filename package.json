@@ -1,0 +1,63 @@
+{
+  "name": "korbing-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Meal planning and shared shopping for households - Expo + FastAPI + Convex monorepo",
+  "scripts": {
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck",
+    "dev": "turbo run dev",
+    "dev:mobile": "turbo run dev --filter=@korb/mobile",
+    "dev:api": "turbo run dev --filter=@korb/api",
+    "dev:convex": "turbo run dev --filter=@korb/convex",
+    "dev:website": "turbo run dev --filter=@korb/website",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:reports": "node scripts/serve-reports.mjs 9327",
+    "build": "turbo run build",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky",
+    "contracts:openapi": "uv run --project apps/api python apps/api/scripts/export_openapi.py",
+    "contracts:generate": "pnpm contracts:openapi && prettier --write apps/api/openapi.json && pnpm --filter @korb/contracts generate:api && prettier --write \"packages/contracts/src/generated/api/**/*.ts\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,md}": [
+      "prettier --write"
+    ],
+    "apps/mobile/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "packages/**/*.{js,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "apps/convex/**/*.{js,ts}": [
+      "eslint --fix"
+    ],
+    "apps/website/**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "apps/api/**/*.py": [
+      "uv run --project apps/api ruff check --fix",
+      "uv run --project apps/api ruff format"
+    ],
+    "apps/scraper/**/*.py": [
+      "uv run --project apps/scraper ruff check --fix",
+      "uv run --project apps/scraper ruff format"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.46.1",
+    "eslint": "^9.22.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.0",
+    "vitest": "^4.0.18"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
