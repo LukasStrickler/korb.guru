@@ -2,7 +2,7 @@
 
 Run the repo from the root: what `pnpm dev` actually starts, what CI enforces today, and which Turbo optimizations are still staged.
 
-- [What `pnpm dev` starts](#what-pnpm-dev-starts) · [Turbo behavior today](#turbo-behavior-today) · [CI today](#ci-today) · [Port map](#port-map) · [Mobile env](#mobile-environment-variables) · [One service](#running-one-service-only) · [Pre-commit](#pre-commit-hygiene)
+- [What `pnpm dev` starts](#what-pnpm-dev-starts) · [Turbo behavior today](#turbo-behavior-today) · [CI today](#ci-today) · [Port map](#port-map) · [Local data services](#local-data-services-postgres--qdrant) · [Mobile env](#mobile-environment-variables) · [One service](#running-one-service-only) · [Pre-commit](#pre-commit-hygiene)
 
 ## What `pnpm dev` starts
 
@@ -75,11 +75,20 @@ Important scope notes:
 
 ## Port map
 
-| Service    | Port | URL                                         |
-| ---------- | ---- | ------------------------------------------- |
-| FastAPI    | 8000 | http://localhost:8000                       |
-| Expo Metro | 8081 | http://localhost:8081                       |
-| Convex     | —    | Set `EXPO_PUBLIC_CONVEX_URL` in mobile env. |
+| Service    | Port                     | URL                                                                          |
+| ---------- | ------------------------ | ---------------------------------------------------------------------------- |
+| FastAPI    | 8000                     | http://localhost:8000                                                        |
+| Expo Metro | 8081                     | http://localhost:8081                                                        |
+| Convex     | —                        | Set `EXPO_PUBLIC_CONVEX_URL` in mobile env.                                  |
+| Postgres   | 5432                     | localhost (see [Local data services](#local-data-services-postgres--qdrant)) |
+| Qdrant     | 6333 (REST), 6334 (gRPC) | http://localhost:6333, UI: http://localhost:6333/dashboard                   |
+
+### Local data services (Postgres + Qdrant)
+
+Stack is defined in root **`compose.yml`** (local only); config and seed live in `apps/postgres/` and `apps/qdrant/`. See [Database guide](database.md) for all commands and for **Coolify/production** (one-click Postgres + Qdrant, env vars on the API).
+
+- **Use local:** `pnpm db:ready` (up + wait healthy + migrate; then optionally `pnpm db:seed`), or `pnpm db:up` then `pnpm db:migrate` and per-store seeds. The API needs `DATABASE_URL` and `QDRANT_URL` when using local DBs — set them to localhost in root `.env` (see `.env.example` and [Database guide](database.md)).
+- **Use remote:** Point those vars at Coolify one-click or another host; do not run `pnpm db:up` for production DBs.
 
 ## Environment variables
 

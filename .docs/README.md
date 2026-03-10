@@ -20,6 +20,7 @@ Index of all docs in `.docs/`. Audience: developers in the Korb monorepo.
 | Doc                                                              | Description                                                                                              |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [Local development](guides/local-dev.md)                         | Port map, env vars, `pnpm dev`, single service.                                                          |
+| [Database setup and migrations](guides/database.md)              | Postgres (Alembic), Qdrant seed, db commands, schema workflow.                                           |
 | [Authentication](guides/authentication.md)                       | Sign-in/sign-up, Convex and FastAPI protected usage, deep links.                                         |
 | [Analytics](guides/analytics.md)                                 | PostHog: mobile bootstrap, FastAPI boundary, event ownership.                                            |
 | [App Store compliance](guides/app-store-compliance-checklist.md) | Bundle ID, privacy policy, EAS, permissions.                                                             |

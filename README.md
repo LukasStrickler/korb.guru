@@ -9,7 +9,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts every workspace dev process: Expo mobile app, Next.js website, FastAPI backend, Convex realtime backend, scraper, and the shared contracts watcher. See [Local Development](.docs/guides/local-dev.md) for ports, CI scope, and Turbo tradeoffs, and [Authentication](.docs/guides/authentication.md) for sign-in setup.
+`pnpm dev` starts every workspace dev process: Expo mobile app, Next.js website, FastAPI backend, Convex realtime backend, scraper, and the shared contracts watcher. For the API with Postgres and Qdrant: `pnpm db:ready` (up + healthy + migrate), or `pnpm db:up` then `pnpm db:migrate` (see [Database setup](.docs/guides/database.md)). See [Local Development](.docs/guides/local-dev.md) for ports, CI scope, and Turbo tradeoffs, and [Authentication](.docs/guides/authentication.md) for sign-in setup.
 
 ## Project Structure
 

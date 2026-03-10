@@ -63,9 +63,11 @@ Deploy in this order so backends are live before clients use them:
 | Layer    | Location                              | Purpose                                                          |
 | -------- | ------------------------------------- | ---------------------------------------------------------------- |
 | Convex   | `apps/convex/.env`, Convex dashboard  | `CONVEX_DEPLOYMENT`; deployment URL.                             |
-| FastAPI  | `apps/api/.env`, platform env         | `CLERK_*`, `CONVEX_*`, `DATABASE_URL`, CORS, etc.                |
+| FastAPI  | `apps/api/.env`, platform env         | `CLERK_*`, `CONVEX_*`, `DATABASE_URL`, `QDRANT_URL`, CORS, etc.  |
 | Mobile   | `apps/mobile/.env`, EAS env / secrets | `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_CONVEX_URL`, Clerk key. |
 | Monorepo | Root `.env`, `.env.example`           | Shared or example vars.                                          |
+
+**Data services (Postgres + Qdrant):** Local dev uses root `compose.yml`; config and seed in `apps/postgres/` and `apps/qdrant/` (pnpm db:up, pnpm db:reset). For deploy use Coolify one-click or any remote Postgres and Qdrant; set `DATABASE_URL` and `QDRANT_URL` on the FastAPI application. Run Postgres migrations in production once per release (e.g. Coolify one-off: `alembic upgrade head` from `apps/api` with production `DATABASE_URL`). Never run `pnpm db:reset` or `pnpm db:seed` against production.
 
 EAS build profiles inject environment at build time. See [Production overview](../architecture/production-overview.md) for traceability and env model.
 

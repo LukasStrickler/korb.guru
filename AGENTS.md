@@ -48,16 +48,17 @@ packages/
 
 ## WHERE TO LOOK
 
-| Task                      | Location                                        | Notes                                                                                                                           |
-| ------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Add mobile screen**     | `apps/mobile/src/app/(home)/` or `(auth)/`      | File-based routing; extend `go/[...slug].tsx` for deep links                                                                    |
-| **Add API route**         | `apps/api/src/routes/`                          | Add module, export in `__init__.py`, register in `main.py`                                                                      |
-| **Add Convex function**   | `apps/convex/convex/`                           | Query/mutation; schema in `schema.ts`                                                                                           |
-| **Add shared type**       | `packages/contracts/src/types/`                 | Domain types; generated types in `src/generated/` (do not edit)                                                                 |
-| **Add scraper logic**     | `apps/scraper/src/`                             | Click CLI; output to stdout or POST                                                                                             |
-| **Update docs**           | `.docs/`                                        | Guides, reference, architecture, ADRs, runbooks (deploy, incident)                                                              |
-| **Update shared config**  | `packages/config/`                              | ESLint, Prettier, tsconfig — see `packages/config/AGENTS.md`                                                                    |
-| **Add or update env var** | Root `.env.example` (and root `.env` for local) | Single place for local dev; root dev scripts inject via dotenv-cli. See [.docs/guides/local-dev.md](.docs/guides/local-dev.md). |
+| Task                          | Location                                        | Notes                                                                                                                           |
+| ----------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Add mobile screen**         | `apps/mobile/src/app/(home)/` or `(auth)/`      | File-based routing; extend `go/[...slug].tsx` for deep links                                                                    |
+| **Add API route**             | `apps/api/src/routes/`                          | Add module, export in `__init__.py`, register in `main.py`                                                                      |
+| **Add Convex function**       | `apps/convex/convex/`                           | Query/mutation; schema in `schema.ts`                                                                                           |
+| **Add shared type**           | `packages/contracts/src/types/`                 | Domain types; generated types in `src/generated/` (do not edit)                                                                 |
+| **Add scraper logic**         | `apps/scraper/src/`                             | Click CLI; output to stdout or POST                                                                                             |
+| **Postgres schema/migration** | `apps/api/alembic/versions/`                    | Add revision; run `pnpm db:migrate`. See [Database guide](.docs/guides/database.md).                                            |
+| **Update docs**               | `.docs/`                                        | Guides, reference, architecture, ADRs, runbooks (deploy, incident)                                                              |
+| **Update shared config**      | `packages/config/`                              | ESLint, Prettier, tsconfig — see `packages/config/AGENTS.md`                                                                    |
+| **Add or update env var**     | Root `.env.example` (and root `.env` for local) | Single place for local dev; root dev scripts inject via dotenv-cli. See [.docs/guides/local-dev.md](.docs/guides/local-dev.md). |
 
 ## CODE MAP
 
@@ -192,6 +193,15 @@ pnpm clean                  # Clean all + node_modules
 
 # Contracts
 pnpm contracts:generate     # Export OpenAPI from API → generate TS → format
+
+# Database (local Postgres + Qdrant; single compose at root)
+pnpm db:up                  # Start both
+pnpm db:ready               # Start both, wait healthy, migrate (no seed); best first run
+pnpm db:down                # Stop both
+pnpm db:migrate             # Apply Postgres migrations (local only unless ALLOW_DESTRUCTIVE_DB=local)
+pnpm db:seed                # Seed both (postgres + qdrant)
+pnpm db:reset               # Wipe both, start, wait healthy, migrate, seed (local only)
+# See [.docs/guides/database.md](.docs/guides/database.md) for all db commands (up, ready, down, migrate, migrate:generate, seed, reset, logs).
 
 # Single app (from root)
 pnpm dev:mobile
