@@ -5,6 +5,7 @@ Authentication for FastAPI: Clerk JWT and ingest API key.
 - Ingest: require_ingest_auth (Bearer or X-Ingest-Secret). See .docs/reference/auth.md.
   Uses constant-time comparison, per-IP exponential backoff, and secure logging.
 """
+
 from __future__ import annotations
 
 import hmac
@@ -130,7 +131,9 @@ async def require_clerk_auth(
         )
     token = credentials.credentials
 
-    # Dev: if no JWKS configured, accept any Bearer and return stub user
+    # DEV PLACEHOLDER: If no JWKS configured, accept any Bearer token.
+    # PRODUCTION: Set CLERK_JWT_ISSUER_DOMAIN or CLERK_JWKS_URL to enable
+    # proper RS256 JWT verification via Clerk's JWKS endpoint.
     if not _get_clerk_jwks_uri():
         return AuthUser(user_id="dev-user", token_sub="placeholder")
 
@@ -162,7 +165,8 @@ async def require_ingest_auth(
     backoff = get_ingest_backoff()
 
     if not expected:
-        return  # Dev: no key configured, allow
+        return  # DEV PLACEHOLDER: No key configured, allow all requests.
+        # PRODUCTION: Set INGEST_API_KEY to enforce API key authentication.
 
     blocked, retry_after = await backoff.is_blocked(ip)
     if blocked:

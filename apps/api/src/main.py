@@ -2,15 +2,27 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 
-from .analytics import flush as posthog_flush
-from .logging_config import configure_logging
-from .request_context import set_request_id
-from .routes import health_router, hello_router, ingest_router, me_router
+# Load root .env when running standalone (e.g. cd apps/api && uv run uvicorn).
+# Via pnpm dev from root, dotenv-cli injects env; this is a fallback.
+# __file__ → .../apps/api/src/main.py → parent**4 = repo root.
+_repo_root = Path(__file__).resolve().parent.parent.parent.parent
+_root_env = _repo_root / ".env"
+if _root_env.is_file():
+    load_dotenv(_root_env, override=False)
+
+# Imports below must run after env load so pydantic-settings and others see root .env.
+from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+
+from .analytics import flush as posthog_flush  # noqa: E402
+from .logging_config import configure_logging  # noqa: E402
+from .request_context import set_request_id  # noqa: E402
+from .routes import health_router, hello_router, ingest_router, me_router  # noqa: E402
 
 configure_logging()
 _logger = logging.getLogger(__name__)

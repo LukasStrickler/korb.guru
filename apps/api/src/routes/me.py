@@ -1,8 +1,9 @@
 """
-Placeholder protected route: requires Clerk auth.
+Protected routes for current user: GET /me and DELETE /me.
 
-Shows how to use require_clerk_auth and how the mobile app should send
-the Bearer token. See .docs/guides/authentication.md.
+DEV NOTE: These routes are scaffolded for development. DELETE /me returns a stub
+and does not actually delete the user. For production, implement the Clerk Backend
+API call to delete the user and any API-held data. See AGENTS.md Dev vs Production.
 """
 
 from fastapi import APIRouter, Depends
@@ -37,6 +38,9 @@ async def delete_me(user: AuthUser = Depends(require_clerk_auth)):
     and remove any API-held user data. The app will then delete Convex data and
     sign out.
     """
-    # TODO: production — delete user via Clerk Backend API (CLERK_SECRET_KEY);
-    # optionally delete any user data stored in this API (e.g. DB).
+    # DEV PLACEHOLDER: Returns 200 without actual deletion.
+    # PRODUCTION: Call Clerk Backend API with CLERK_SECRET_KEY to delete the user:
+    #   https://clerk.com/docs/reference/backend-api/tag/Users#operation/DeleteUser
+    # Then delete any user data stored in this API (e.g., database records).
+    # The mobile app will handle deleting Convex data and signing out.
     return {"ok": True}
