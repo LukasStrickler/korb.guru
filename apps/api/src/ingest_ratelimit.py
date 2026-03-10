@@ -4,6 +4,7 @@ Per-IP exponential backoff for ingest auth failures.
 Makes brute-force of INGEST_API_KEY impractical: each failed attempt
 increases the required wait before the next attempt for that IP.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -42,11 +43,15 @@ class InMemoryIngestBackoff:
         # ip -> (fail_count, blocked_until)
         self._state: dict[str, tuple[int, float]] = {}
         self._lock = asyncio.Lock()
-        self._base_sec = base_sec if base_sec is not None else _config_int(
-            "INGEST_BACKOFF_BASE_SEC", DEFAULT_BASE_SEC
+        self._base_sec = (
+            base_sec
+            if base_sec is not None
+            else _config_int("INGEST_BACKOFF_BASE_SEC", DEFAULT_BASE_SEC)
         )
-        self._max_exp = max_exponent if max_exponent is not None else _config_int(
-            "INGEST_BACKOFF_MAX_EXPONENT", DEFAULT_MAX_EXPONENT
+        self._max_exp = (
+            max_exponent
+            if max_exponent is not None
+            else _config_int("INGEST_BACKOFF_MAX_EXPONENT", DEFAULT_MAX_EXPONENT)
         )
 
     def _backoff_seconds(self, fail_count: int) -> int:

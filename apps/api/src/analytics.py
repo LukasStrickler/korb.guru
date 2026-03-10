@@ -5,6 +5,7 @@ Use for events you want in PostHog alongside mobile analytics (e.g. ingest auth
 failures, blocked IPs). Python logging remains for stdout and ops; PostHog
 gives a single place to see security events and correlate with frontend.
 """
+
 from __future__ import annotations
 
 import os

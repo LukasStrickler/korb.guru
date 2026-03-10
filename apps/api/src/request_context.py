@@ -1,4 +1,5 @@
 """Request-scoped context (e.g. request_id) for logging and correlation."""
+
 from __future__ import annotations
 
 import contextvars

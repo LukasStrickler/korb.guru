@@ -1,4 +1,5 @@
 """Structured logging: request_id filter and consistent format."""
+
 from __future__ import annotations
 
 import logging
@@ -19,9 +20,7 @@ def configure_logging() -> None:
     """Configure root logger with request_id and timestamp."""
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, log_level, logging.INFO)
-    fmt = (
-        "%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s"
-    )
+    fmt = "%(asctime)s %(levelname)s %(name)s request_id=%(request_id)s %(message)s"
     logging.basicConfig(
         level=level,
         format=fmt,
