@@ -1,0 +1,6 @@
+# E2E flow: launch app. Add assertVisible steps once you have stable UI text.
+# appId must match app.json (iOS bundleIdentifier / Android package).
+# Run: pnpm test:e2e (from apps/mobile) or maestro test .maestro/ (requires built app on simulator/emulator).
+appId: guru.korb.mobile
+---
+- launchApp
