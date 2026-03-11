@@ -1,4 +1,4 @@
-# korb.ing
+# korb.guru
 
 Meal planning and shared shopping for households. App and deployments are under **korb.guru** (bundle id `guru.korb.mobile`, deep links `korb.guru/...`). From discovering recipes to planning meals, shopping, and cooking, all in one place.
 
@@ -95,3 +95,14 @@ pnpm clean
 - **Scraper logic**: `apps/scraper/src/`
 
 When adding a feature that spans services, define one canonical owner per entity. See the architecture docs for decision guidance.
+
+## License
+
+[Business Source License 1.1](LICENSE)
+
+In plain English:
+
+- You can read, fork, and modify the code.
+- You can use the code for non-production purposes.
+- Commercial production use is not allowed without a separate commercial license from the korb.guru team.
+- Each released version transitions to AGPL-3.0-or-later four years after its first public release.
