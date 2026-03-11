@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, pool
 
 from alembic import context
+from src.models import user  # noqa: F401 - register User model for autogenerate
+from src.models.base import Base  # noqa: F401 - imported for metadata registration
 
 # Load root .env when running from monorepo root (e.g. pnpm db:migrate)
 # so DATABASE_URL is available without cd apps/api/.env
@@ -38,7 +40,10 @@ if database_url:
         database_url = "postgresql+psycopg2://" + database_url.split("://", 1)[1]
     config.set_main_option("sqlalchemy.url", database_url)
 
-target_metadata = None
+# Set metadata for autogenerate support.
+# Import models here (or via src.models) so they register on Base.metadata.
+# When adding models (e.g., User), ensure they're imported before autogenerate runs.
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
