@@ -60,10 +60,7 @@ describe("Mobile API client (integration)", () => {
   it("throws on non-ok response", async () => {
     server.use(
       http.get(`${BASE}/hello`, () => {
-        return HttpResponse.json(
-          { detail: "Server error" },
-          { status: 500 },
-        );
+        return HttpResponse.json({ detail: "Server error" }, { status: 500 });
       }),
     );
 
