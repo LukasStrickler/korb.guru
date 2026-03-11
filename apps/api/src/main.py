@@ -28,6 +28,7 @@ from .routes import (  # noqa: E402
     hello_router,
     ingest_router,
     me_router,
+    users_router,
 )
 
 configure_logging()
@@ -55,6 +56,7 @@ app.include_router(hello_router)
 app.include_router(examples_router)
 app.include_router(ingest_router)
 app.include_router(me_router)
+app.include_router(users_router)
 
 
 @app.exception_handler(Exception)
