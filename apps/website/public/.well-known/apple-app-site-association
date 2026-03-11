@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "REPLACE_WITH_APPLE_TEAM_ID.guru.korb.mobile",
+        "paths": ["/go/*"]
+      }
+    ]
+  },
+  "activitycontinuation": {
+    "apps": ["REPLACE_WITH_APPLE_TEAM_ID.guru.korb.mobile"]
+  },
+  "webcredentials": {
+    "apps": ["REPLACE_WITH_APPLE_TEAM_ID.guru.korb.mobile"]
+  }
+}

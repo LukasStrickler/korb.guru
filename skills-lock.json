@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "code-quality": {
+      "source": "LukasStrickler/ai-dev-atelier",
+      "sourceType": "github",
+      "computedHash": "2d8f0c5575b2f2906d5fd8e195b15ae3171e38e89809868d9a4a10aff234c785"
+    },
+    "docs-write": {
+      "source": "LukasStrickler/ai-dev-atelier",
+      "sourceType": "github",
+      "computedHash": "587a1ca5f50ad2b0b565c562a12c40c181f472267ea737edf2481f871b1c7780"
+    },
+    "git-commit": {
+      "source": "LukasStrickler/ai-dev-atelier",
+      "sourceType": "github",
+      "computedHash": "334559d03e95cb3ab037904dfd4250b28632f4bcd028893235c2f63b2d09282c"
+    },
+    "resolve-pr-comments": {
+      "source": "LukasStrickler/ai-dev-atelier",
+      "sourceType": "github",
+      "computedHash": "a693f6878234b2e31df0493fede32812d8dde2532a0222a86046f0e372a3911e"
+    },
+    "tdd": {
+      "source": "LukasStrickler/ai-dev-atelier",
+      "sourceType": "github",
+      "computedHash": "53f086ed2ad82eba934d673b3cb09c3c17a7261a2f22682de0360dbcd715fb99"
+    },
+    "ui-animation": {
+      "source": "LukasStrickler/ai-dev-atelier",
+      "sourceType": "github",
+      "computedHash": "02d224f5534463351140c3518736c2d2e40309a9dc9f61905505020bd515e971"
+    }
+  }
+}

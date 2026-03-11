@@ -1,0 +1,11 @@
+{
+  "name": "@korb/scraper",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "uv run scraper --sink stdout --format json --limit 3",
+    "lint": "uv run ruff check src",
+    "typecheck": "uv run python -m compileall src",
+    "test": "uv run pytest"
+  }
+}

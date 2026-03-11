@@ -1,0 +1,207 @@
+# =============================================================================
+# Korb Monorepo Root .gitignore
+# =============================================================================
+# This file should be supplemented by app-specific .gitignore files
+
+# =============================================================================
+# Package Managers
+# =============================================================================
+# pnpm
+.pnpm-store/
+pnpm-debug.log*
+pnpm-retries.txt
+
+# npm
+npm-debug.log*
+npm-error.log*
+
+# yarn
+yarn-error.log*
+yarn-debug.log*
+.yarn-integrity
+
+# =============================================================================
+# Node / JavaScript
+# =============================================================================
+node_modules/
+*.node_repl_history
+*.tgz
+dist/
+build/
+.next/
+.expo/
+.web-build/
+
+# TypeScript
+*.tsbuildinfo
+*.tsbuildinfo.*
+
+# ESLint
+.eslintcache
+.eslintcache.*
+
+# =============================================================================
+# Python
+# =============================================================================/
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.venv*
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Ruff
+.ruff_cache/
+.ruff_cache
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytest_cache/
+
+# =============================================================================
+# Turbo / Monorepo
+# =============================================================================
+.turbo/
+
+# Build outputs that should be cached
+apps/*/dist/
+apps/*/.next/
+apps/*/build/
+packages/*/dist/
+
+# =============================================================================
+# IDE
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.pem
+
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+*.local
+
+# Secrets (never commit)
+*.pem
+*.key
+*.p12
+*.p8
+*.mobileprovision
+
+# =============================================================================
+# Logs & Temporary
+# =============================================================================
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+temp/
+
+# Convex
+.convex/
+convex-generated/
+
+# =============================================================================
+# iOS / Android (mobile app builds)
+# =============================================================================
+# iOS
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Android
+*.apk
+*.aab
+*.dex
+*.class
+
+# Expo
+.expo/
+web-build/
+
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+coverage/
+.nyc_output/
+.coverage
+htmlcov/
+
+# Vitest
+.vitest/
+
+# Jest
+.jest/
+
+# Husky generated files
+.husky/_
+
+# Docker (local overrides only)
+compose.override.yml
+
+# =============================================================================
+# Misc
+# =============================================================================
+# Temporary files from OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Credentials (if accidentally committed)
+credentials.json
+service-account.json
+android-service-account.json
+*.credentials
+
+# Agents
+.sisyphus/
+.ada/
+
+# App lib/ dirs (root lib/ is for Python) — do not ignore
+!apps/mobile/src/lib/
+!apps/mobile/src/lib/*
+!apps/mobile/src/__tests__/lib/
+!apps/mobile/src/__tests__/lib/*
+!apps/website/lib/
+!apps/website/lib/*

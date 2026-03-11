@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "jest",
+  "plugins": ["@stryker-mutator/jest-runner"],
+  "jest": {
+    "projectType": "custom",
+    "configFile": "jest.config.js",
+    "enableFindRelatedTests": true
+  },
+  "mutate": ["src/lib/api.ts"],
+  "ignorePatterns": ["**/node_modules/**", "**/.expo/**", "**/coverage/**"],
+  "reporters": ["clear-text", "html", "json"],
+  "htmlReporter": { "fileName": "coverage/mutations/mutation-report.html" },
+  "jsonReporter": { "fileName": "coverage/mutations/mutation-report.json" },
+  "tempDirName": "coverage/.test-stryker",
+  "cleanTempDir": "always",
+  "inPlace": true
+}
