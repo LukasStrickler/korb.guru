@@ -200,6 +200,8 @@ android-service-account.json
 .sisyphus/
 .ada/
 
-# Mobile app src/lib (Clerk, Convex, API, etc.) — do not ignore; root lib/ is for Python
+# App lib/ dirs (root lib/ is for Python) — do not ignore
 !apps/mobile/src/lib/
 !apps/mobile/src/lib/*
+!apps/website/lib/
+!apps/website/lib/*
