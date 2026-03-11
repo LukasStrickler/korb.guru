@@ -48,7 +48,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Get pnpm store directory
         shell: bash
@@ -122,7 +122,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install API dependencies
         working-directory: apps/api
@@ -178,7 +178,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install API dependencies
         working-directory: apps/api
@@ -205,7 +205,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install API dependencies
         working-directory: apps/api
@@ -237,7 +237,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install Scraper dependencies
         working-directory: apps/scraper
@@ -287,6 +287,22 @@ jobs:
   api-health:
     name: API Health Check
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -299,17 +315,26 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install API dependencies
         working-directory: apps/api
         run: uv sync
 
+      - name: Run database migrations
+        working-directory: apps/api
+        run: uv run alembic upgrade head
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
       - name: Start API server in background
         working-directory: apps/api
         run: |
           uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl -sf http://localhost:8000/health && break
+            sleep 2
+          done
 
       - name: Check API health endpoint
-        run: curl -f http://localhost:8000/health || exit 1
+        run: curl -sf http://localhost:8000/health
