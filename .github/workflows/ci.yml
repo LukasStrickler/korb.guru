@@ -172,6 +172,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Docker is pre-installed on ubuntu-latest for testcontainers
+      # API tests use testcontainers[postgres] which requires Docker
+      - name: Verify Docker is available
+        run: docker --version
+
+      - name: Setup Python (for API tests)
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: uv sync
+
       - name: Run tests
         run: pnpm test
 
