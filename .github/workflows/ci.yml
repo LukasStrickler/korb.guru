@@ -105,15 +105,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run Prettier format check
-        run: pnpm format:check
-
-      - name: Run lint
-        run: pnpm lint
-
-      - name: Run typecheck
-        run: pnpm typecheck
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -127,6 +118,19 @@ jobs:
       - name: Install API dependencies
         working-directory: apps/api
         run: uv sync
+
+      - name: Install Scraper dependencies
+        working-directory: apps/scraper
+        run: uv sync
+
+      - name: Run Prettier format check
+        run: pnpm format:check
+
+      - name: Run lint
+        run: pnpm lint
+
+      - name: Run typecheck
+        run: pnpm typecheck
 
       - name: Generate API contracts
         run: pnpm contracts:generate

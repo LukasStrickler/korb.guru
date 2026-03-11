@@ -199,3 +199,7 @@ android-service-account.json
 # Agents
 .sisyphus/
 .ada/
+
+# Mobile app src/lib (Clerk, Convex, API, etc.) — do not ignore; root lib/ is for Python
+!apps/mobile/src/lib/
+!apps/mobile/src/lib/*
