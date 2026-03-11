@@ -41,7 +41,7 @@
     "db:logs:qdrant": "docker compose -f compose.yml logs -f qdrant"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,md}": [
+    "**/*.{js,jsx,ts,tsx,json,md}": [
       "prettier --write"
     ],
     "apps/mobile/**/*.{js,jsx,ts,tsx}": [
