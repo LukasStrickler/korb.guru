@@ -203,5 +203,7 @@ android-service-account.json
 # App lib/ dirs (root lib/ is for Python) — do not ignore
 !apps/mobile/src/lib/
 !apps/mobile/src/lib/*
+!apps/mobile/src/__tests__/lib/
+!apps/mobile/src/__tests__/lib/*
 !apps/website/lib/
 !apps/website/lib/*

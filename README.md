@@ -1,6 +1,6 @@
 # korb.guru
 
-Meal planning and shared shopping for households. App and deployments are under **korb.guru** (bundle id `guru.korb.mobile`, deep links `korb.guru/...`). From discovering recipes to planning meals, shopping, and cooking, all in one place.
+Meal planning and shared shopping for households. One app for recipes, meal plans, shopping, and cooking.
 
 ## Quick Start
 
@@ -9,22 +9,22 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts every workspace dev process: Expo mobile app, Next.js website, FastAPI backend, Convex realtime backend, scraper, and the shared contracts watcher. For the API with Postgres and Qdrant: `pnpm db:ready` (up + healthy + migrate), or `pnpm db:up` then `pnpm db:migrate` (see [Database setup](.docs/guides/database.md)). See [Local Development](.docs/guides/local-dev.md) for ports, CI scope, and Turbo tradeoffs, and [Authentication](.docs/guides/authentication.md) for sign-in setup.
+`pnpm dev` runs all workspace dev processes (mobile, website, API, Convex, scraper, contracts). For API with Postgres and Qdrant: `pnpm db:ready` then see [Database setup](.docs/guides/database.md). [Local Development](.docs/guides/local-dev.md) has ports and env; [Authentication](.docs/guides/authentication.md) has sign-in setup.
 
-## Project Structure
+## Structure
 
-This is a pnpm + Turbo monorepo with a hybrid backend architecture. Each app has a **README** with setup and commands — see [apps/README.md](apps/README.md) for an index.
+pnpm + Turbo monorepo. App READMEs and index: [apps/README.md](apps/README.md).
 
 ```
 apps/
-  mobile/             # Expo React Native mobile app (@korb/mobile)
-  website/            # Next.js marketing site (@korb/website)
-  api/                # FastAPI Python backend (@korb/api)
-  convex/             # Convex TypeScript backend (@korb/convex)
-  scraper/            # Python scraper CLI (@korb/scraper)
+  mobile/      Expo React Native (@korb/mobile)
+  website/     Next.js marketing (@korb/website)
+  api/         FastAPI Python (@korb/api)
+  convex/      Convex TypeScript (@korb/convex)
+  scraper/     Python scraper CLI (@korb/scraper)
 packages/
-  contracts/          # Shared TypeScript types (@korb/contracts)
-  config/             # Shared tooling configs (@korb/config)
+  contracts/   Shared TS types from OpenAPI (@korb/contracts)
+  config/      Shared tooling (@korb/config)
 ```
 
 ## Service Ownership
@@ -50,32 +50,12 @@ See [FastAPI <-> Convex Interaction](.docs/architecture/fastapi-convex-interacti
 ## Common Commands
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Start full stack (all services)
-pnpm dev
-
-# Run one service only
-pnpm --filter @korb/mobile dev
-pnpm --filter @korb/website dev
-pnpm --filter @korb/api dev
-pnpm --filter @korb/convex dev
-pnpm --filter @korb/scraper dev
-
-# Code quality
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm format
-pnpm format:check
-
-# Contract generation (FastAPI -> OpenAPI -> TypeScript)
-pnpm contracts:generate
-
-# Build and clean
+pnpm dev                         # full stack dev (mobile, website, api, convex, scraper)
+pnpm --filter @korb/mobile dev   # single app
+pnpm lint && pnpm typecheck && pnpm test
+pnpm contracts:generate          # OpenAPI → TypeScript
 pnpm build
-pnpm clean
 ```
 
 ## Documentation
