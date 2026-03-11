@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import PostHog from 'posthog-react-native';
-import Constants from 'expo-constants';
+import { useEffect, useRef } from "react";
+import PostHog from "posthog-react-native";
+import Constants from "expo-constants";
 
 /**
  * PostHog client instance
@@ -19,10 +19,10 @@ const getPostHogApiKey = (): string => {
 
   if (!key) {
     console.warn(
-      'Warning: EXPO_PUBLIC_POSTHOG_API_KEY is not set. ' +
-      'Analytics will not be tracked. Please set it in your .env file.'
+      "Warning: EXPO_PUBLIC_POSTHOG_API_KEY is not set. " +
+        "Analytics will not be tracked. Please set it in your .env file.",
     );
-    return 'phc_placeholder_key';
+    return "phc_placeholder_key";
   }
 
   return key;
@@ -59,7 +59,14 @@ export const initPostHog = async (): Promise<PostHog | null> => {
   }
 
   try {
-    posthogClient = await (PostHog as unknown as { initAsync: (key: string, opts: Record<string, unknown>) => Promise<PostHog> }).initAsync(apiKey, {
+    posthogClient = await (
+      PostHog as unknown as {
+        initAsync: (
+          key: string,
+          opts: Record<string, unknown>,
+        ) => Promise<PostHog>;
+      }
+    ).initAsync(apiKey, {
       host,
       // Enable automatic screen capture for navigation events
       captureScreenViews: true,
@@ -72,7 +79,7 @@ export const initPostHog = async (): Promise<PostHog | null> => {
     console.warn("PostHog: Initialized successfully");
     return posthogClient;
   } catch (error) {
-    console.error('PostHog: Failed to initialize:', error);
+    console.error("PostHog: Failed to initialize:", error);
     return null;
   }
 };
@@ -111,7 +118,12 @@ export const trackEvent = (
   properties?: Record<string, string | number | boolean | null>,
 ): void => {
   if (posthogClient) {
-    posthogClient.capture(eventName, properties as Record<string, string | number | boolean | null> | undefined);
+    posthogClient.capture(
+      eventName,
+      properties as
+        | Record<string, string | number | boolean | null>
+        | undefined,
+    );
   } else {
     // In development, log the event instead
     if (__DEV__) {
@@ -129,7 +141,12 @@ export const identifyUser = (
   properties?: Record<string, string | number | boolean | null>,
 ): void => {
   if (posthogClient) {
-    posthogClient.identify(userId, properties as Record<string, string | number | boolean | null> | undefined);
+    posthogClient.identify(
+      userId,
+      properties as
+        | Record<string, string | number | boolean | null>
+        | undefined,
+    );
   } else {
     if (__DEV__) {
       console.warn("[Analytics] Identify:", userId, properties);

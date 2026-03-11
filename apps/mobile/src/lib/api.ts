@@ -18,7 +18,10 @@ const getApiBaseUrl = (): string => {
 
 /** Generate a request ID for correlation with backend logs. */
 const getRequestId = (): string => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -62,9 +65,10 @@ const apiFetch = async <TResponse>(
     try {
       const json = await response.json();
       if (typeof json?.detail === "string") detail = json.detail;
-      else if (Array.isArray(json?.detail)) detail = json.detail.map(String).join("; ");
+      else if (Array.isArray(json?.detail))
+        detail = json.detail.map(String).join("; ");
     } catch {
-      detail = await response.text() || undefined;
+      detail = (await response.text()) || undefined;
     }
     throw new ApiError(
       `API request failed (${response.status})`,
