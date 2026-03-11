@@ -106,7 +106,7 @@ http.route({
       return new Response(
         JSON.stringify({
           error: "Webhook signature verification failed",
-          message: errorMessage,
+          message: "Invalid signature",
         }),
         {
           status: 401,

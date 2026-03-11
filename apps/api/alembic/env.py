@@ -21,17 +21,12 @@ from src.models.base import Base  # noqa: F401 - imported for metadata registrat
 # Using __file__ ensures resolution works when running from apps/api.
 
 env_paths = (
-
     os.path.join(os.getcwd(), ".env"),  # When running from repo root
-
     os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"),
-
 )
 
 for path in env_paths:
-
     if os.path.isfile(path):
-
         load_dotenv(path)
 
         break
