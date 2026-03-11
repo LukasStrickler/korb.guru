@@ -16,16 +16,26 @@ from alembic import context
 from src.models import user  # noqa: F401 - register User model for autogenerate
 from src.models.base import Base  # noqa: F401 - imported for metadata registration
 
-# Load root .env when running from monorepo root (e.g. pnpm db:migrate)
-# so DATABASE_URL is available without cd apps/api/.env
+# Load .env: first try current directory, then repo root (relative to this file).
+
+# Using __file__ ensures resolution works when running from apps/api.
+
 env_paths = (
-    os.path.join(os.getcwd(), ".env"),
-    os.path.join(os.getcwd(), "..", ".env"),
+
+    os.path.join(os.getcwd(), ".env"),  # When running from repo root
+
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"),
+
 )
+
 for path in env_paths:
+
     if os.path.isfile(path):
+
         load_dotenv(path)
+
         break
+
 
 config = context.config
 if config.config_file_name is not None:

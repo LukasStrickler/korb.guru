@@ -24,7 +24,7 @@ FastAPI Python backend for Korb — heavy compute, integrations, webhooks, and t
    All API environment variables are optional for local development (dev placeholders work). Key variables:
    - `CLERK_SECRET_KEY` — Server-side Clerk operations (optional in dev)
    - `POSTHOG_API_KEY` — Server-side analytics (optional)
-   - `CORS_ORIGINS` — Comma-separated allowed origins (e.g., `http://localhost:8081,http://localhost:3000`)
+   - `CORS_ORIGINS` — Comma-separated allowed origins (e.g., `http://localhost:8081,http://localhost:3001`)
    - `INGEST_API_KEY` — Protects POST /ingest (dev allows all if unset)
 
    See [Local Development](../../.docs/guides/local-dev.md) and [Auth Reference](../../.docs/reference/auth.md) for full documentation.

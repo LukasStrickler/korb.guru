@@ -44,7 +44,7 @@ From inside `apps/scraper`: use `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm
 | Use case                     | Command                                                                                                          |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Mock to stdout (default dev) | `uv run scraper --sink stdout --format json [--limit N]`                                                         |
-| Output to file               | `uv run scraper --sink file --output-dir ./out --format json`                                                    |
+| Output to file               | `uv run scraper --sink file --output-file ./out.json --format json`                                              |
 | Ingest to API                | Set `INGEST_API_KEY` (or `--api-token`); see [Scraper Ingestion](../../.docs/architecture/scraper-ingestion.md). |
 
 ## Project structure

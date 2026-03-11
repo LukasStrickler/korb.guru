@@ -62,13 +62,14 @@ const apiFetch = async <TResponse>(
 
   if (!response.ok) {
     let detail: string | undefined;
+    const text = await response.text();
     try {
-      const json = await response.json();
+      const json = JSON.parse(text);
       if (typeof json?.detail === "string") detail = json.detail;
       else if (Array.isArray(json?.detail))
         detail = json.detail.map(String).join("; ");
     } catch {
-      detail = (await response.text()) || undefined;
+      detail = text || undefined;
     }
     throw new ApiError(
       `API request failed (${response.status})`,

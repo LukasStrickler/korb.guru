@@ -9,6 +9,7 @@
  */
 import { httpAction } from "./_generated/server";
 import { httpRouter } from "convex/server";
+import { Webhook } from "svix";
 
 const http = httpRouter();
 
@@ -39,21 +40,85 @@ http.route({
  * Handles:
  * - user.deleted: Clean up user data when deleted from Clerk
  *
- * Security: In production, verify the Svix signature header.
+ * Security: Verifies Svix signature to ensure webhook authenticity.
  * @see https://docs.svix.com/receiving/verifying-payloads/how
  */
 http.route({
   path: "/clerk-webhook",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    // TODO: Verify Svix webhook signature in production
-    // const svixSignature = request.headers.get("svix-signature");
-    // const svixTimestamp = request.headers.get("svix-timestamp");
-    // const svixId = request.headers.get("svix-id");
+    // Security: Verify Svix webhook signature
+    const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
 
+    // Gate: Reject if webhook secret is not configured (DEV_ONLY safety)
+    if (!webhookSecret) {
+      console.error("[Clerk Webhook] CLERK_WEBHOOK_SECRET not configured");
+      return new Response(
+        JSON.stringify({
+          error: "Webhook endpoint not configured",
+          message: "CLERK_WEBHOOK_SECRET environment variable must be set",
+        }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Extract Svix headers for signature verification
+    const svixId = request.headers.get("svix-id");
+    const svixTimestamp = request.headers.get("svix-timestamp");
+    const svixSignature = request.headers.get("svix-signature");
+
+    // Validate required Svix headers are present
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      console.error("[Clerk Webhook] Missing Svix headers");
+      return new Response(
+        JSON.stringify({
+          error: "Missing webhook signature headers",
+          message: "Required headers: svix-id, svix-timestamp, svix-signature",
+        }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Get raw request body for signature verification
+    const payload = await request.text();
+
+    // Verify webhook signature
+    try {
+      const wh = new Webhook(webhookSecret);
+      wh.verify(payload, {
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
+      });
+      console.log("[Clerk Webhook] Signature verified successfully");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(
+        "[Clerk Webhook] Signature verification failed:",
+        errorMessage,
+      );
+      return new Response(
+        JSON.stringify({
+          error: "Webhook signature verification failed",
+          message: errorMessage,
+        }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Parse JSON body after signature verification
     let body;
     try {
-      body = await request.json();
+      body = JSON.parse(payload);
     } catch {
       return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
         status: 400,

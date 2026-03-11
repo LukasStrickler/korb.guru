@@ -85,8 +85,8 @@ This monorepo uses pnpm + Turbo as the orchestrator with a hybrid architecture c
 ### Backend Team
 
 - `apps/scraper/` - Python scraping logic
-- `convex/` - Realtime business logic
-- `api/` - FastAPI server and integrations
+- `apps/convex/` - Realtime business logic
+- `apps/api/` - FastAPI server and integrations
 
 ### Shared Infrastructure
 
@@ -101,15 +101,15 @@ This monorepo uses pnpm + Turbo as the orchestrator with a hybrid architecture c
 1. **No Real Product Features**
    - Initial scope is infrastructure-only
    - No e-commerce functionality
-   - No user authentication
+   - Clerk auth is part of the scaffold (see guardrail #2)
    - No payment processing
    - No production database schemas
 
-2. **No Auth Implementation**
-   - Development-only authentication (if any)
-   - No OAuth flows
-   - No JWT implementation
-   - No role-based access control
+2. **No Custom Auth Implementation**
+   - Clerk + JWT is already part of the scaffold (see `.docs/guides/authentication.md`)
+   - No custom OAuth providers (use Clerk's OAuth integrations)
+   - No alternative auth systems (stick with Clerk for consistency)
+   - No custom JWT handling (use the existing `require_clerk_auth` in FastAPI and `ctx.auth` in Convex)
 
 3. **No Production Infrastructure**
    - No cloud deployment configurations
@@ -132,7 +132,7 @@ This monorepo uses pnpm + Turbo as the orchestrator with a hybrid architecture c
 
 - **Stack Constraints**: Only use specified technologies
 - **Scope Constraints**: Stay within infrastructure setup
-- **Testing Constraints**: Basic integration tests only, no E2E
+- **Testing Constraints**: Support unit, integration, component, and E2E (Maestro) tests; keep flaky E2E cases quarantined
 - **Documentation**: Keep inline comments minimal, prefer this file
 
 ## Frozen Defaults

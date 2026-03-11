@@ -442,7 +442,7 @@ Wave 5 (After Wave 4 — verification and polish):
 
   **Must NOT do**:
   - Do not commit real secrets.
-  - Do not use one shared env file for all services.
+  - Do not rely on a single env file for all services in production; use the root `.env` only for local dev and keep per-app `.env.example` files.
 
   **Recommended Agent Profile**:
   - **Category**: `quick`
@@ -1094,7 +1094,7 @@ Wave 5 (After Wave 4 — verification and polish):
 
   **Commit**: YES
   - Message: `docs(repo): add setup and architecture guidance`
-  - Files: `README.md`, `docs/architecture/*`
+  - Files: `README.md`, `.docs/architecture/*`
   - Pre-commit: `pnpm lint`
 
 - [x] 17. Add lint/typecheck/test tooling plan

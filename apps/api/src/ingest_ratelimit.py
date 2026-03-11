@@ -31,7 +31,14 @@ def _config_int(name: str, default: int) -> int:
 
 
 class InMemoryIngestBackoff:
-    """Tracks per-IP ingest auth failures and applies exponential backoff."""
+    """Tracks per-IP ingest auth failures and applies exponential backoff.
+
+    Note: State is stored in memory, so this works for single-instance
+    deployments only. In multi-instance or serverless environments,
+    requests from the same IP can hit different instances and bypass
+    backoff. For production-grade rate limiting across multiple instances,
+    use a shared store like Redis.
+    """
 
     __slots__ = ("_state", "_lock", "_base_sec", "_max_exp")
 

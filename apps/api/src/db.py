@@ -35,11 +35,11 @@ def _normalize_url(url: str) -> str:
     """
     if url.startswith("postgres://"):
         url = "postgresql://" + url.split("://", 1)[1]
-    # Strip any existing driver suffix
-    if "postgresql+" in url:
-        after_slash = url.split("://", 1)[-1]
-        url = "postgresql://" + after_slash.split("+", 1)[-1]
-    # Add asyncpg driver if not already present
+    # Strip any existing driver suffix from the scheme only
+    if url.startswith("postgresql+"):
+        scheme, rest = url.split("://", 1)
+        base_scheme = scheme.split("+", 1)[0]
+        url = f"{base_scheme}://{rest}"
     if not url.startswith("postgresql+asyncpg://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url

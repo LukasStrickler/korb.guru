@@ -102,12 +102,22 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) {
+      throw new ConvexError({
+        code: "unauthenticated",
+        message: "Not signed in",
+      });
+    }
     const user = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .first();
-    if (!user) throw new Error("User not found. Sign in again.");
+    if (!user) {
+      throw new ConvexError({
+        code: "not_found",
+        message: "User not found. Sign in again.",
+      });
+    }
     const recipeId = await ctx.db.insert("recipes", {
       ...args,
       userId: user._id,

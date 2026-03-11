@@ -16,7 +16,8 @@ function getSlugPath(slug: string[]): string {
 
 export default function GoPage() {
   const params = useParams();
-  const slug = (params.slug as string[]) ?? [];
+  const rawSlug = params.slug;
+  const slug = Array.isArray(rawSlug) ? rawSlug : rawSlug ? [rawSlug] : [];
   const path = getSlugPath(slug);
   const appDeepLink = `${APP_SCHEME}://go${path}`;
   const appStoreLink = APP_STORE_URL;

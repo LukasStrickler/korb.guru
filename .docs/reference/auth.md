@@ -78,11 +78,11 @@ Do not duplicate: FastAPI does not run sign-in; Convex does not issue sessions; 
 
 ### `GET /me` and `DELETE /me`
 
-| Item       | Value                                                                                                                              |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| File       | `apps/api/src/routes/me.py`                                                                                                        |
-| GET /me    | Auth: Bearer required. Response: `{ "user_id": string, "message": string }`. Mobile: `fetchMe(await getToken())` from `@/lib/api`. |
-| DELETE /me | Auth: Bearer required. Deletes current user (Clerk + Convex cleanup). Call Clerk Backend API to delete user when implementing.     |
+| Item       | Value                                                                                                                                                                        |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File       | `apps/api/src/routes/me.py`                                                                                                                                                  |
+| GET /me    | Auth: Bearer required. Response: `{ "user_id": string, "message": string }`. Mobile: `fetchMe(await getToken())` from `@/lib/api`.                                           |
+| DELETE /me | Auth: Bearer required. Stub for now: returns `{ "ok": true }` and does not delete user yet. Implement Clerk Backend API deletion and cleanup before treating this as active. |
 
 To add protected routes: use `Depends(require_clerk_auth)`, register router in `main.py`, call from app with `apiFetchWithAuth(path, token)`.
 

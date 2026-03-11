@@ -7,6 +7,7 @@ Guides are **how-to** and task-focused: they show you how to accomplish specific
 | Doc                                                       | Description                                                                                              |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | [Local development](local-dev.md)                         | Port map, env vars, `pnpm dev`, single service.                                                          |
+| [Database setup and migrations](database.md)              | Postgres (Alembic), Qdrant seed, db commands, schema workflow.                                           |
 | [Authentication](authentication.md)                       | Sign-in/sign-up, Convex and FastAPI protected usage, deep links.                                         |
 | [Analytics](analytics.md)                                 | PostHog: mobile bootstrap, FastAPI boundary, event ownership.                                            |
 | [App Store compliance](app-store-compliance-checklist.md) | Bundle ID, privacy policy, EAS, permissions.                                                             |

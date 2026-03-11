@@ -91,8 +91,6 @@ dmypy.json
 # Turbo / Monorepo
 # =============================================================================
 .turbo/
-turbo.json
-!turbo.json
 
 # Build outputs that should be cached
 apps/*/dist/
