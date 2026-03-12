@@ -1,2 +1,5 @@
 # Storybook generated (do not edit; regenerated with different formatting)
 apps/mobile/.rnstorybook/
+
+# Expo generated env types (do not edit)
+apps/mobile/expo-env.d.ts

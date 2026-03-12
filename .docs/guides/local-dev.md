@@ -1,53 +1,54 @@
 # Local development
 
-Run the repo from the root: what `pnpm dev` actually starts, what CI enforces today, and which Turbo optimizations are still staged.
+**Audience:** Developers running the monorepo locally.  
+**Doc type:** How-to (reference-heavy).
 
-- [What `pnpm dev` starts](#what-pnpm-dev-starts) · [Turbo behavior today](#turbo-behavior-today) · [CI today](#ci-today) · [Port map](#port-map) · [Local data services](#local-data-services-postgres--qdrant) · [Mobile env](#mobile-environment-variables) · [One service](#running-one-service-only) · [Pre-commit](#pre-commit-hygiene)
+This guide explains dev scripts (**what** each command runs), Turbo/CI behavior, ports, and env. Naming matches intent: **`pnpm dev`** is the full stack; **`pnpm dev:app`** is the recommended app workflow (backend first, then interactive Expo).
 
-## What `pnpm dev` starts
+Standards: [.agents/skills/docs-write/references/documentation-guide.md](../../.agents/skills/docs-write/references/documentation-guide.md).
+
+- [Dev scripts (critical)](#dev-scripts-critical) · [Turbo behavior today](#turbo-behavior-today) · [CI today](#ci-today) · [Port map](#port-map) · [Local data services](#local-data-services-postgres--qdrant) · [Mobile env](#mobile-environment-variables) · [One service](#running-one-service-only) · [Pre-commit](#pre-commit-hygiene)
+
+## Dev scripts (critical)
+
+**Rule:** Name matches intent.
+
+| Command                    | What it runs                                                                                                                                                                                          | When to use                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **`pnpm dev`**             | **Everything** — all workspaces that define `dev` (mobile Metro, website, API, Convex, scraper, contracts) + `db:ready` when Docker is up                                                             | Full monorepo; one command to spin the whole stack                    |
+| **`pnpm dev:backend`**     | **Backend of the app only** — `db:ready` + **API + Convex** (foreground Turbo). No Metro                                                                                                              | When you want API/Convex without starting Expo                        |
+| **`pnpm dev:app`**         | **Backend in background, then Expo in the foreground (interactive)** — one terminal: API + Convex start first; Metro runs last so you can use i/a / Shift+I / Shift+A. Ctrl+C stops Metro and backend | **Default daily flow** — no second terminal                           |
+| **`pnpm dev:metro`**       | **Metro only** — same as `pnpm --filter @korb/mobile run dev`                                                                                                                                         | Backend already running elsewhere                                     |
+| **`pnpm dev:all-but-app`** | All `dev` tasks **except** mobile (API, Convex, website, scraper, contracts) + `db:ready`                                                                                                             | Need website/scraper/contracts without Metro                          |
+| **`pnpm dev:contracts`**   | **Contracts package only** — tsup watch on `@korb/contracts`                                                                                                                                          | Editing OpenAPI/codegen; optional if you only use generated artifacts |
 
 ```bash
 pnpm install
+
+# Option A — full monorepo (everything including website)
 pnpm dev
+
+# Option B — app workflow in one terminal (backend starts first, Expo last = interactive)
+pnpm dev:app
+
+# Metro only (backend already running)
+pnpm dev:metro
 ```
 
-`pnpm dev` runs `turbo run dev`. In this repo, that means every workspace with a `dev` script starts, not just the mobile/backend path.
+**Do not confuse:**
 
-```mermaid
-flowchart LR
-  subgraph turbo["turbo run dev"]
-    M[mobile]
-    W[website]
-    A[api]
-    C[Convex]
-    S[scraper]
-    X[contracts]
-  end
-  M --> Metro
-  W --> Next["Next.js :3001"]
-  A --> FastAPI["FastAPI :8000"]
-  C --> Convex["Convex"]
-  S --> stdout
-  X --> watch
-```
+- **`dev`** = all services (including website). Not “backend only.”
+- **`dev:backend`** = API + Convex only (no Expo). Use when you don’t need the interactive Metro terminal.
+- **`dev:app`** = backend then **interactive** Expo — not Metro-only; Metro-only is **`dev:metro`**.
 
-| Workspace         | Purpose                   |
-| ----------------- | ------------------------- |
-| `@korb/mobile`    | Expo Metro.               |
-| `@korb/website`   | Next.js dev server.       |
-| `@korb/api`       | FastAPI on port 8000.     |
-| `@korb/convex`    | Convex dev backend.       |
-| `@korb/scraper`   | Scraper mock output.      |
-| `@korb/contracts` | Shared contracts watcher. |
-
-Single app from root: `pnpm dev:mobile`, `pnpm dev:api`, `pnpm dev:convex`, `pnpm dev:website`. Or `pnpm --filter @korb/<name> dev` for any workspace.
+Single-package runs: `pnpm dev:api`, `pnpm dev:convex`, `pnpm dev:website`, or `pnpm --filter @korb/<name> dev`.
 
 ## Turbo behavior today
 
 Turbo is configured conservatively in this scaffold:
 
 - **Local cache only**: `turbo.json` defines task outputs, but there is no remote cache wiring in the repo or CI. `TURBO_TOKEN` / `TURBO_TEAM` are not configured.
-- **Persistent dev tasks**: `dev` is marked `persistent` and `cache: false`, so `pnpm dev` always launches fresh long-running processes.
+- **Persistent dev tasks**: `dev` is marked `persistent` and `cache: false`, so dev tasks always launch fresh long-running processes.
 - **No affected-only execution**: Root scripts and GitHub Actions run broad commands such as `turbo run lint`, `turbo run test`, and `turbo run build`. No `--affected` flow is wired today.
 
 Future improvements, not current behavior:
@@ -77,7 +78,7 @@ Important scope notes:
 
 | Service    | Port                     | URL                                                                          |
 | ---------- | ------------------------ | ---------------------------------------------------------------------------- |
-| FastAPI    | 8000                     | http://localhost:8000                                                        |
+| FastAPI    | 8001                     | http://localhost:8001                                                        |
 | Expo Metro | 8081                     | http://localhost:8081                                                        |
 | Convex     | —                        | Set `EXPO_PUBLIC_CONVEX_URL` in mobile env.                                  |
 | Postgres   | 5432                     | localhost (see [Local data services](#local-data-services-postgres--qdrant)) |
@@ -97,14 +98,14 @@ Stack is defined in root **`compose.yml`** (local only); config and seed live in
 You can use a **single root `.env`** so there is one place to define and manage variables for local dev:
 
 1. Copy root `.env.example` to **root** `.env`: `cp .env.example .env`
-2. Run dev from the repo root: `pnpm dev` or `pnpm dev:mobile`, `pnpm dev:api`, etc.
+2. Run dev from the repo root: `pnpm dev`, `pnpm dev:backend`, `pnpm dev:app`, etc.
 
-Root scripts use **dotenv-cli**: they run `dotenv -- turbo run dev`, which loads the root `.env` and injects it into the environment for every app Turbo starts. So mobile, API, Convex, website, and scraper all receive the same variables when you run from root.
+Root scripts use **dotenv-cli**: they run `dotenv -- turbo run dev`, which loads the root `.env` and injects it into the environment for every app Turbo starts.
 
 **Fallbacks when not using root scripts:**
 
 - **API** — If you run the API from `apps/api` (e.g. `cd apps/api && uv run uvicorn ...`), the app loads root `.env` automatically via `python-dotenv` so the same file still works.
-- **Mobile** — Metro is configured to load `.env` from the workspace root when you start from `apps/mobile`; if you run from root with `pnpm dev:mobile`, dotenv-cli already injects env.
+- **Mobile** — Metro is configured to load `.env` from the workspace root when you start from `apps/mobile`; if you run from root with `pnpm dev:app`, dotenv-cli already injects env.
 
 Per-app `.env` files (e.g. `apps/mobile/.env`) are still supported: app-specific files can override or supplement the root file where tools support it.
 
@@ -125,7 +126,7 @@ These must be set before running the corresponding service:
 | ----------------------------------- | ------- | ----------------------------------------------------------------- |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Mobile  | https://dashboard.clerk.com (pk*test*\* for dev)                  |
 | `EXPO_PUBLIC_CONVEX_URL`            | Mobile  | Run `pnpm --filter @korb/convex dev` to get URL                   |
-| `EXPO_PUBLIC_API_BASE_URL`          | Mobile  | `http://localhost:8000` (iOS) or `http://10.0.2.2:8000` (Android) |
+| `EXPO_PUBLIC_API_BASE_URL`          | Mobile  | `http://localhost:8001` (iOS) or `http://10.0.2.2:8001` (Android) |
 | `CONVEX_DEPLOYMENT`                 | Convex  | Same as `EXPO_PUBLIC_CONVEX_URL` but without the client key       |
 
 ### Optional for local development
@@ -155,10 +156,10 @@ See [Auth reference](../reference/auth.md) for full details.
 
 ```env
 # iOS Simulator
-EXPO_PUBLIC_API_BASE_URL=http://localhost:8000
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8001
 
 # Android Emulator
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8001
 ```
 
 ## Mobile: check and security
@@ -167,12 +168,18 @@ From `apps/mobile`: `pnpm run check` (lint + typecheck), `pnpm run check:securit
 
 ## Running one service only
 
-| Command            | Workspace     |
-| ------------------ | ------------- |
-| `pnpm dev:mobile`  | @korb/mobile  |
-| `pnpm dev:api`     | @korb/api     |
-| `pnpm dev:convex`  | @korb/convex  |
-| `pnpm dev:website` | @korb/website |
+| Command              | Workspace         | Notes                                                            |
+| -------------------- | ----------------- | ---------------------------------------------------------------- |
+| `pnpm dev`           | all workspaces    | **Everything** — full stack.                                     |
+| `pnpm dev:backend`   | api + convex + db | **Backend only** (foreground). No Expo.                          |
+| `pnpm dev:app`       | script            | **Backend bg → Expo fg** — interactive Metro; Ctrl+C stops both. |
+| `pnpm dev:metro`     | @korb/mobile      | **Metro only** — if API/Convex already running.                  |
+| `pnpm dev:api`       | @korb/api         |                                                                  |
+| `pnpm dev:convex`    | @korb/convex      |                                                                  |
+| `pnpm dev:website`   | @korb/website     |                                                                  |
+| `pnpm dev:contracts` | @korb/contracts   | Contracts watch only.                                            |
+
+To run on different simulators or use development builds instead of Expo Go, see [Mobile: simulators and devices](mobile-simulators-and-devices.md).
 
 Any workspace: `pnpm --filter @korb/api dev`, etc.
 

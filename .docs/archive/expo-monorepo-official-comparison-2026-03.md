@@ -1,6 +1,6 @@
 # Expo Monorepo + Convex + Clerk: Official Guide Comparison Report
 
-**Historical report** (2026-03-09). One-off alignment check; actionable items (e.g. enable Clerk Native API) are in the [Deploy and rollback](../runbooks/deploy-and-rollback.md) runbook.
+**Historical report** (2026-03-09). One-off alignment check for the earlier Expo monorepo setup. Treat this as background only; the current validated Clerk/Convex recommendation is captured in the [Clerk Expo downgrade report](clerk-expo-convex-auth-downgrade-2026-03.md).
 
 **Workspace:** `expo-monorepo-setup-koiu` · **Scope:** pnpm workspaces, `apps/mobile` (Expo SDK 55 + Convex + Clerk) vs official recommendations.
 
@@ -68,7 +68,7 @@
 ### 4.3 Env / placeholder keys in code — FIXED
 
 - **Clerk:** `src/lib/clerk.ts` still falls back to `pk_test_placeholder_key` in dev when `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` is missing (with a console warning).
-- **Convex:** `src/lib/convex.tsx` still falls back to `https://example.convex.cloud` in dev when `EXPO_PUBLIC_CONVEX_URL` is missing.
+- **Convex:** `src/lib/convex.tsx` throws in dev when `EXPO_PUBLIC_CONVEX_URL` is missing or a placeholder (no fallback). Production: `assertProductionEnv()` in root layout enforces required vars.
 - **Production:** `src/lib/env.ts` implements `assertProductionEnv()`: in production builds (`!__DEV__`), it throws if either required var is missing or equals the placeholder. Root layout calls `assertProductionEnv()` at startup. ✓
 
 ### 4.4 Convex backend in `apps/convex`
@@ -92,18 +92,18 @@
 
 ## 5. Summary Table
 
-| Area                              | Status           | Action                                             |
-| --------------------------------- | ---------------- | -------------------------------------------------- |
-| pnpm workspaces layout            | ✓ Aligned        | None                                               |
-| Expo SDK                          | ✓ Upgraded       | SDK 55 (React 19.2, RN 0.83.2, New Arch only)      |
-| ClerkProvider + tokenCache        | ✓ Aligned        | None; consider migrating to @clerk/expo later      |
-| ConvexProviderWithClerk + useAuth | ✓ Aligned        | None                                               |
-| Convex backend (apps/convex)      | ✓ Valid          | Optional: shared types/codegen                     |
-| Metro monorepo config             | ✓ Fixed          | Simplified per SDK 52+ docs; NativeWind only       |
-| Clerk Native API                  | ⚠ Doc step       | Document "Enable Native API" in README/runbook     |
-| Env placeholders in prod          | ✓ Fixed          | assertProductionEnv() in root layout               |
-| .npmrc (pnpm)                     | ○ Optional       | Add `node-linker=hoisted` only if issues on SDK 55 |
-| Clerk webhook + users.list        | ⚠ Not prod-ready | Verify Svix; restrict/remove users.list            |
+| Area                              | Status           | Action                                                                             |
+| --------------------------------- | ---------------- | ---------------------------------------------------------------------------------- |
+| pnpm workspaces layout            | ✓ Aligned        | None                                                                               |
+| Expo SDK                          | ✓ Upgraded       | SDK 55 (React 19.2, RN 0.83.2, New Arch only)                                      |
+| ClerkProvider + tokenCache        | ✓ Aligned        | Historical snapshot only; current repo stays pinned to `@clerk/clerk-expo@2.19.31` |
+| ConvexProviderWithClerk + useAuth | ✓ Aligned        | None                                                                               |
+| Convex backend (apps/convex)      | ✓ Valid          | Optional: shared types/codegen                                                     |
+| Metro monorepo config             | ✓ Fixed          | Simplified per SDK 52+ docs; NativeWind only                                       |
+| Clerk Native API                  | ⚠ Doc step       | Document "Enable Native API" in README/runbook                                     |
+| Env placeholders in prod          | ✓ Fixed          | assertProductionEnv() in root layout                                               |
+| .npmrc (pnpm)                     | ○ Optional       | Add `node-linker=hoisted` only if issues on SDK 55                                 |
+| Clerk webhook + users.list        | ⚠ Not prod-ready | Verify Svix; restrict/remove users.list                                            |
 
 ---
 
@@ -114,4 +114,4 @@
 - [x] Env validation: require `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` and `EXPO_PUBLIC_CONVEX_URL` in production (no placeholders) — `src/lib/env.ts` + root layout.
 - [ ] Convex: verify Clerk webhook with Svix; restrict or remove `users.list` for production.
 - [ ] Optional: add root `.npmrc` with `node-linker=hoisted` if on SDK 55 and seeing native/dependency issues.
-- [ ] Optional: migrate from `@clerk/clerk-expo` to `@clerk/expo` (Clerk Core 3) when ready; current package is deprecated.
+- [ ] Do not treat Clerk Core 3 migration as active work from this report; use the downgrade report before changing the mobile auth stack.

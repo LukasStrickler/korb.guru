@@ -1,6 +1,6 @@
 # API (@korb/api)
 
-FastAPI Python backend for Korb — heavy compute, integrations, webhooks, and the auth boundary (Clerk JWT). Use this app for the HTTP API; it runs on port **8000** and uses **uv** for Python dependencies.
+FastAPI Python backend for Korb — heavy compute, integrations, webhooks, and the auth boundary (Clerk JWT). Use this app for the HTTP API; it runs on port **8001** locally and uses **uv** for Python dependencies.
 
 - [Setup](#setup) · [Important commands](#important-commands) · [Endpoints](#endpoints) · [Project structure](#project-structure) · [Docs](#docs)
 
@@ -48,12 +48,12 @@ Run from **repo root** with `pnpm --filter @korb/api <script>`, or from `apps/ap
 
 | Command                             | Description                                 |
 | ----------------------------------- | ------------------------------------------- |
-| `pnpm --filter @korb/api dev`       | Start FastAPI with hot reload on port 8000. |
+| `pnpm --filter @korb/api dev`       | Start FastAPI with hot reload on port 8001. |
 | `pnpm --filter @korb/api lint`      | Run Ruff.                                   |
 | `pnpm --filter @korb/api typecheck` | Python compile check.                       |
 | `pnpm --filter @korb/api test`      | Run pytest.                                 |
 
-From inside `apps/api`: use `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test`. Or run `uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload` (dev), `uv run ruff check src scripts` (lint), `uv run pytest` (test).
+From inside `apps/api`: use `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test`. Or run `uv run uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload` (dev), `uv run ruff check src scripts` (lint), `uv run pytest` (test).
 
 ## Endpoints
 
@@ -64,7 +64,7 @@ From inside `apps/api`: use `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm tes
 | GET /me         | Bearer token | Current user (Clerk JWT).                                          |
 | DELETE /me      | Bearer token | Account deletion (stub; production: delete via Clerk Backend API). |
 
-When the server is running, open http://localhost:8000/docs for the full OpenAPI spec.
+When the server is running, open http://localhost:8001/docs for the full OpenAPI spec.
 
 ## Project structure
 

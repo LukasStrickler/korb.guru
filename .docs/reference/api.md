@@ -6,7 +6,7 @@ Where the HTTP API lives and how to discover its surface. For auth and ingest de
 
 | Environment | Base URL                                     | OpenAPI UI                                               |
 | ----------- | -------------------------------------------- | -------------------------------------------------------- |
-| Local       | `http://localhost:8000`                      | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| Local       | `http://localhost:8001`                      | [http://localhost:8001/docs](http://localhost:8001/docs) |
 | Production  | Your API host (e.g. `https://api.korb.guru`) | `{base}/docs`                                            |
 
 The API is FastAPI; interactive docs and schema are at `/docs` when the server is running.

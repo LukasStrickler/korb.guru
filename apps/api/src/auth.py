@@ -43,17 +43,32 @@ def _constant_time_equals(provided: str | None, expected: str) -> bool:
 class AuthUser:
     """Minimal user info from verified Clerk JWT."""
 
-    def __init__(self, user_id: str, token_sub: str | None = None):
+    def __init__(
+        self,
+        user_id: str,
+        token_sub: str | None = None,
+        session_id: str | None = None,
+    ):
         self.user_id = user_id
         self.token_sub = token_sub  # Clerk subject (stable user id)
+        self.session_id = session_id
+
+
+def _get_clerk_issuer_domain() -> str:
+    """Clerk issuer domain from CLERK_JWT_ISSUER_DOMAIN or CLERK_FRONTEND_API_URL."""
+    return (
+        os.getenv("CLERK_JWT_ISSUER_DOMAIN")
+        or os.getenv("CLERK_FRONTEND_API_URL")
+        or ""
+    ).strip()
 
 
 def _get_clerk_jwks_uri() -> str | None:
-    """JWKS URI from CLERK_JWT_ISSUER_DOMAIN or CLERK_JWKS_URL."""
+    """JWKS URI from CLERK_JWKS_URL or Clerk issuer domain env."""
     url = os.getenv("CLERK_JWKS_URL") or None
     if url:
         return url
-    domain = (os.getenv("CLERK_JWT_ISSUER_DOMAIN") or "").strip()
+    domain = _get_clerk_issuer_domain()
     if not domain:
         return None
     base = domain.rstrip("/")
@@ -74,15 +89,22 @@ def _verify_clerk_jwt(token: str) -> AuthUser:
     try:
         client = PyJWKClient(jwks_uri)
         signing_key = client.get_signing_key_from_jwt(token)
-        issuer = (os.getenv("CLERK_JWT_ISSUER_DOMAIN") or "").strip().rstrip("/")
-        if not issuer and jwks_uri.endswith("/.well-known/jwks.json"):
-            issuer = jwks_uri.replace("/.well-known/jwks.json", "")
+        raw_issuer = _get_clerk_issuer_domain().rstrip("/")
+        if not raw_issuer and jwks_uri.endswith("/.well-known/jwks.json"):
+            raw_issuer = jwks_uri.replace("/.well-known/jwks.json", "")
+        # Accept token iss with or without trailing slash (Clerk may use either)
+        allowed_issuers = [raw_issuer] if raw_issuer else None
+        if raw_issuer and not raw_issuer.endswith("/"):
+            allowed_issuers = [raw_issuer, f"{raw_issuer}/"]
         payload = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
-            options={"require": ["exp", "nbf", "sub"]},
-            issuer=issuer or None,
+            options={
+                "require": ["exp", "nbf", "sub"],
+                "verify_aud": False,
+            },
+            issuer=allowed_issuers,
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -98,6 +120,7 @@ def _verify_clerk_jwt(token: str) -> AuthUser:
             headers={"WWW-Authenticate": "Bearer"},
         )
     sub = payload.get("sub") or ""
+    sid = payload.get("sid")
     azp_allowed = os.getenv(_CLERK_AZP_ALLOWED_ENV)
     if azp_allowed:
         allowed = [a.strip() for a in azp_allowed.split(",") if a.strip()]
@@ -109,7 +132,7 @@ def _verify_clerk_jwt(token: str) -> AuthUser:
                 detail="Invalid token audience",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    return AuthUser(user_id=sub, token_sub=sub)
+    return AuthUser(user_id=sub, token_sub=sub, session_id=sid)
 
 
 async def require_clerk_auth(

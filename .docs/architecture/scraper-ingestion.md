@@ -32,7 +32,7 @@ One sink per run.
 | ----------- | -------------------------- | --------------------------------------------------------------------------------------- |
 | **stdout**  | Local debug, fixtures      | `uv run scraper --sink stdout --format jsonl [--limit N]`                               |
 | **file**    | Reproducible payloads      | `uv run scraper --sink file --output-file ./.tmp/mock.json [--limit N]`                 |
-| **fastapi** | FastAPI owns workflow      | `uv run scraper --sink fastapi --endpoint-url http://127.0.0.1:8000/ingest [--limit N]` |
+| **fastapi** | FastAPI owns workflow      | `uv run scraper --sink fastapi --endpoint-url http://127.0.0.1:8001/ingest [--limit N]` |
 | **convex**  | Convex-owned entities only | `uv run scraper --sink convex --endpoint-url https://<convex-http> [--limit N]`         |
 
 FastAPI sink: payload has `source`, `sink`, `recordCount`, `records`. Response: `{ status, accepted, source }`. Do not duplicate canonical ownership (FastAPI vs Convex).

@@ -63,7 +63,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# Python/venv lib only (do not ignore app or agent skill lib/ dirs)
+/lib/
+.venv/lib/
+venv/lib/
+ENV/lib/
 lib64/
 parts/
 sdist/
@@ -198,10 +202,12 @@ android-service-account.json
 .sisyphus/
 .ada/
 
-# App lib/ dirs (root lib/ is for Python) — do not ignore
+# Explicit lib/ dirs to track (generic lib/ ignored above for Python/venv only)
 !apps/mobile/src/lib/
 !apps/mobile/src/lib/*
 !apps/mobile/src/__tests__/lib/
 !apps/mobile/src/__tests__/lib/*
 !apps/website/lib/
 !apps/website/lib/*
+!.agents/skills/resolve-pr-comments/scripts/lib/
+!.agents/skills/resolve-pr-comments/scripts/lib/*

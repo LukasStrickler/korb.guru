@@ -7,7 +7,7 @@ from urllib import request
 
 Record = dict[str, Any]
 
-DEFAULT_FASTAPI_INGEST_URL = "http://127.0.0.1:8000/ingest"
+DEFAULT_FASTAPI_INGEST_URL = "http://127.0.0.1:8001/ingest"
 
 
 def get_mock_recipes() -> list[Record]:

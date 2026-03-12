@@ -51,7 +51,7 @@ export default function App() {
   return (
     <ClerkProvider
       publishableKey={clerkConfig.publishableKey}
-      tokenCache={tokenCache}
+      {...(tokenCache != null ? { tokenCache } : {})}
     >
       <SafeAreaProvider>
         <WelcomeScreen />

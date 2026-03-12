@@ -2,10 +2,10 @@ import "../../global.css";
 
 import { Stack } from "expo-router";
 
-import { clerkConfig, ClerkProvider, tokenCache } from "@/lib/clerk";
-import { ConvexClientProvider } from "@/lib/convex";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { assertProductionEnv } from "@/lib/env";
+import { clerkConfig, ClerkProvider, tokenCache } from "@/lib/clerk";
+import { ConvexClientProvider } from "@/lib/convex";
 import { usePostHog } from "@/lib/posthog";
 
 assertProductionEnv();
@@ -25,7 +25,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={clerkConfig.publishableKey}
-      tokenCache={tokenCache}
+      {...(tokenCache != null ? { tokenCache } : {})}
     >
       <ConvexClientProvider>
         <ErrorBoundary>

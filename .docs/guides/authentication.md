@@ -1,6 +1,6 @@
 # Authentication
 
-**In this guide you will:** sign in and sign out from the mobile app, call protected Convex and FastAPI from the client, and add new protected endpoints or Convex functions. Auth in the Korb stack uses Clerk (sessions and JWT), Convex (JWT auto-attached), and FastAPI (Bearer token).
+**In this guide you will:** use the unified mobile auth screen, call protected Convex and FastAPI endpoints from the client, and add new protected endpoints or Convex functions. Auth in the Korb stack uses Clerk (sessions and JWT), Convex (JWT auto-attached), and FastAPI (Bearer token).
 
 - [Overview](#overview) · [Mobile sign-in/sign-out](#mobile-sign-in-and-sign-out) · [Convex](#mobile-calling-convex-authenticated) · [FastAPI](#mobile-calling-fastapi-protected-endpoints) · [Handle and deep links](#handle-and-deep-links) · [Docs](#docs)
 
@@ -20,7 +20,7 @@ sequenceDiagram
   participant Convex
   participant FastAPI
 
-  User->>Mobile: Sign in / Sign up
+  User->>Mobile: Sign in / Sign up (email code)
   Mobile->>Clerk: Authenticate
   Clerk->>Mobile: Session + JWT
 
@@ -38,12 +38,21 @@ sequenceDiagram
 
 Expo Router route groups:
 
-| Group    | Purpose                                                     |
-| -------- | ----------------------------------------------------------- |
-| `(auth)` | Sign-in and sign-up; shown when not signed in.              |
-| `(home)` | Main app (handle, profile, sign-out); shown when signed in. |
+| Group    | Purpose                                                       |
+| -------- | ------------------------------------------------------------- |
+| `(auth)` | Unified sign-in and sign-up screen; shown when not signed in. |
+| `(home)` | Main app (handle, profile, sign-out); shown when signed in.   |
 
-Flow: (1) Root `index` redirects to `/(home)` if signed in, else `/(auth)/sign-in`. (2) Sign-in and sign-up use email + password (MFA supported). (3) After sign-in, the app syncs the Convex user via `users.syncFromClerk`; user can set a **handle** and sign out. (4) Sign-out uses `SignOutButton` → Clerk `signOut()` → redirect to sign-in.
+Flow: (1) Root `index` redirects to `/(home)` if signed in, else `/(auth)`. (2) The unified auth screen uses email code for both sign-in and sign-up. Sign-in follows the legacy Clerk Expo flow: `signIn.create({ identifier })` → `prepareFirstFactor({ strategy: "email_code", emailAddressId })` → `attemptFirstFactor({ strategy: "email_code", code })`. If the email does not exist, the app falls back from sign-in to sign-up on the same screen. (3) Sign-up uses `prepareEmailAddressVerification()` and `attemptEmailAddressVerification()`. (4) Completion uses Clerk `setActive({ session: createdSessionId })`. (5) After sign-in, the app syncs the Convex user via `users.syncFromClerk`; the user can set a **handle** and sign out. (6) Sign-out uses `SignOutButton` → Clerk `signOut()` → redirect to `/(auth)`.
+
+### Current working mobile stack
+
+- Package: `@clerk/clerk-expo@2.19.31`
+- Provider chain: `ClerkProvider` → `ConvexProviderWithClerk`
+- Unified auth screen: `apps/mobile/src/app/(auth)/index.tsx`
+- Convex client auth: plain `ConvexProviderWithClerk client={convex} useAuth={useAuth}`
+
+This repo is intentionally pinned to the older Clerk Expo package because that is the stack validated against the current Convex Expo integration. See the historical note in [Clerk Expo downgrade report](../archive/clerk-expo-convex-auth-downgrade-2026-03.md).
 
 ## Mobile: calling Convex (authenticated)
 
@@ -55,17 +64,17 @@ if (!identity) throw new Error("Not authenticated");
 // identity.subject = Clerk user id
 ```
 
-See `convex/users.ts` and `convex/example.ts` (`requireAuthExample`, `requireAuthMutationExample`). [Auth reference](../reference/auth.md#convex-authenticated-functions).
+See `convex/users.ts` (e.g. `getCurrent`, `setHandle`, `syncFromClerk`). [Auth reference](../reference/auth.md#convex-authenticated-functions).
 
 ## Mobile: calling FastAPI (protected endpoints)
 
-Send the Clerk session token in the header:
+Send the standard Clerk session token in the header:
 
 ```http
 Authorization: Bearer <clerk_session_token>
 ```
 
-Get the token with `useAuth().getToken()` and call `fetchMe(token)` or `apiFetchWithAuth(path, token)` from `@/lib/api`. The helper adds the Bearer header. [Auth reference](../reference/auth.md#fastapi-protected-endpoints).
+Get the token with `useAuth().getToken()` and call `fetchMe(token)` or `apiFetchWithAuth(path, token)` from `@/lib/api`. The helper adds the Bearer header. FastAPI does **not** use the Convex JWT template; that template is only for Convex. [Auth reference](../reference/auth.md#fastapi-protected-endpoints).
 
 ## Adding a protected FastAPI endpoint
 
@@ -78,7 +87,7 @@ See [Auth reference](../reference/auth.md#fastapi-protected-endpoints) for produ
 
 1. In the handler, get identity with `ctx.auth.getUserIdentity()` and throw if `null`.
 2. Use `identity.subject` as the stable Clerk user id (e.g. for the `users` table by `clerkId`).
-3. See `convex/users.ts` and `convex/example.ts` for `requireAuthExample` and `requireAuthMutationExample`.
+3. See `convex/users.ts` for the auth pattern (e.g. `getCurrent`, `setHandle`).
 
 ## Handle and deep links
 

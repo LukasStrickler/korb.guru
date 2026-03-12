@@ -50,6 +50,8 @@ API uses `DATABASE_URL` and `QDRANT_URL` from env; local stack is root `compose.
   **Auth**
 
 - `require_clerk_auth`: Bearer token, placeholder in dev (accepts any Bearer if JWKS not configured), JWKS verify in prod (set `CLERK_JWT_ISSUER_DOMAIN` or `CLERK_JWKS_URL`)
+- FastAPI expects the plain Clerk session token from mobile `getToken()`. It does not mint Convex tokens and does not depend on the Convex JWT template.
+- FastAPI verifies Clerk session tokens by signature, `exp`, `nbf`, and `iss`. It does not enforce `aud` by default; use `CLERK_AZP_ALLOWED` if you need an allowed-client check.
 - `require_ingest_auth`: API key + per-IP exponential backoff via `InMemoryIngestBackoff`. Dev: allows all if key unset. Prod: set `INGEST_API_KEY`
 - Constant-time comparison for keys (hmac.compare_digest)
   **Middleware**
@@ -68,7 +70,7 @@ API uses `DATABASE_URL` and `QDRANT_URL` from env; local stack is root `compose.
   **Python Stack**
 - uv for deps, ruff for lint/format (line-length 88, py311)
 - pytest in `tests/`, pythonpath includes `src`
-- Run: `uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload`
+- Run: `uv run uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload`
 
 ## ANTI-PATTERNS
 

@@ -34,7 +34,7 @@ Use a Convex **action** when a Convex workflow needs heavy compute or external A
 
 ```ts
 // Convex action
-const response = await fetch("http://localhost:8000/integrations/...", {
+const response = await fetch("http://localhost:8001/integrations/...", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ ... }),
