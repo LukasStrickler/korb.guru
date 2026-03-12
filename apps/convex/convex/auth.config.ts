@@ -14,7 +14,9 @@ import type { AuthConfig } from "convex/server";
  * Run `npx convex dev` after changing env vars.
  */
 const clerkIssuerDomain =
-  process.env.CLERK_JWT_ISSUER_DOMAIN ?? process.env.CLERK_FRONTEND_API_URL;
+  (process.env.CLERK_JWT_ISSUER_DOMAIN ?? "").trim() ||
+  (process.env.CLERK_FRONTEND_API_URL ?? "").trim() ||
+  undefined;
 
 if (!clerkIssuerDomain) {
   throw new Error(
