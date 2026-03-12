@@ -54,16 +54,21 @@ class AuthUser:
         self.session_id = session_id
 
 
+def _get_clerk_issuer_domain() -> str:
+    """Clerk issuer domain from CLERK_JWT_ISSUER_DOMAIN or CLERK_FRONTEND_API_URL."""
+    return (
+        os.getenv("CLERK_JWT_ISSUER_DOMAIN")
+        or os.getenv("CLERK_FRONTEND_API_URL")
+        or ""
+    ).strip()
+
+
 def _get_clerk_jwks_uri() -> str | None:
     """JWKS URI from CLERK_JWKS_URL or Clerk issuer domain env."""
     url = os.getenv("CLERK_JWKS_URL") or None
     if url:
         return url
-    domain = (
-        os.getenv("CLERK_JWT_ISSUER_DOMAIN")
-        or os.getenv("CLERK_FRONTEND_API_URL")
-        or ""
-    ).strip()
+    domain = _get_clerk_issuer_domain()
     if not domain:
         return None
     base = domain.rstrip("/")
@@ -84,15 +89,7 @@ def _verify_clerk_jwt(token: str) -> AuthUser:
     try:
         client = PyJWKClient(jwks_uri)
         signing_key = client.get_signing_key_from_jwt(token)
-        raw_issuer = (
-            (
-                os.getenv("CLERK_JWT_ISSUER_DOMAIN")
-                or os.getenv("CLERK_FRONTEND_API_URL")
-                or ""
-            )
-            .strip()
-            .rstrip("/")
-        )
+        raw_issuer = _get_clerk_issuer_domain().rstrip("/")
         if not raw_issuer and jwks_uri.endswith("/.well-known/jwks.json"):
             raw_issuer = jwks_uri.replace("/.well-known/jwks.json", "")
         # Accept token iss with or without trailing slash (Clerk may use either)

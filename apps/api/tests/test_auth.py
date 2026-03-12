@@ -17,7 +17,8 @@ def test_verify_clerk_jwt_disables_audience_validation_for_session_tokens(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Clerk session tokens may include aud and should still verify by default."""
-
+    monkeypatch.delenv("CLERK_JWT_ISSUER_DOMAIN", raising=False)
+    monkeypatch.delenv("CLERK_AZP_ALLOWED", raising=False)
     monkeypatch.setenv(
         "CLERK_FRONTEND_API_URL",
         "https://regular-wahoo-99.clerk.accounts.dev",
@@ -67,7 +68,8 @@ def test_verify_clerk_jwt_returns_401_for_invalid_tokens(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Invalid JWTs should still map to a 401 response."""
-
+    monkeypatch.delenv("CLERK_JWT_ISSUER_DOMAIN", raising=False)
+    monkeypatch.delenv("CLERK_AZP_ALLOWED", raising=False)
     monkeypatch.setenv(
         "CLERK_FRONTEND_API_URL",
         "https://regular-wahoo-99.clerk.accounts.dev",
@@ -98,7 +100,8 @@ async def test_me_route_accepts_clerk_session_token_without_audience_check(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Protected routes should accept verified Clerk session tokens with aud present."""
-
+    monkeypatch.delenv("CLERK_JWT_ISSUER_DOMAIN", raising=False)
+    monkeypatch.delenv("CLERK_AZP_ALLOWED", raising=False)
     monkeypatch.setenv(
         "CLERK_FRONTEND_API_URL",
         "https://regular-wahoo-99.clerk.accounts.dev",

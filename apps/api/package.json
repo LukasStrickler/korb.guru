@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "uv run uvicorn src.main:app --host 0.0.0.0 --port ${API_PORT:-8001} --reload",
+    "dev": "uv run python -c \"import os; import uvicorn; uvicorn.run('src.main:app', host='0.0.0.0', port=int(os.environ.get('API_PORT', 8001)), reload=True)\"",
     "lint": "uv run ruff check src scripts",
     "typecheck": "uv run python -m compileall src scripts",
     "test": "uv run pytest"
