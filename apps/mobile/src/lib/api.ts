@@ -46,9 +46,10 @@ export const getApiBaseUrl = (): string => {
       /^https?:\/\/(localhost|127\.0\.0\.1)(?::(\d+))?/,
     );
     if (match) {
-      const port = match[2] ?? "8000";
+      const port = match[2] ?? "8001";
       const protocol = baseUrl.startsWith("https") ? "https" : "http";
-      return `${protocol}://${devHost}:${port}`;
+      const pathSuffix = baseUrl.slice(match[0].length) || "";
+      return `${protocol}://${devHost}:${port}${pathSuffix}`;
     }
   }
 

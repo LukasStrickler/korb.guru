@@ -5,7 +5,7 @@ const {
   withStorybook,
 } = require("@storybook/react-native/metro/withStorybook");
 
-// Load root .env when running from apps/mobile (e.g. pnpm dev from app dir) or from root (pnpm dev:app, pnpm dev:ios).
+// Load root .env when running from apps/mobile (e.g. pnpm dev from app dir) or from root (pnpm dev:app).
 // When run via pnpm dev from repo root, dotenv-cli already injects env; this is a fallback.
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");

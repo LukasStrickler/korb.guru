@@ -252,6 +252,7 @@ export default function AuthScreen() {
             setActive,
             doNavigate,
           });
+          return;
         }
       } catch (error) {
         setAuthError(getErrorMessage(error));
@@ -276,6 +277,7 @@ export default function AuthScreen() {
             setActive,
             doNavigate,
           });
+          return;
         }
       } catch (error) {
         setAuthError(getErrorMessage(error));

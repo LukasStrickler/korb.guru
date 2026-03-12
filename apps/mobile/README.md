@@ -38,31 +38,31 @@ For the historical reason this package is pinned, see [Clerk downgrade report](.
 
 ## Important commands
 
-From **repo root**: `pnpm dev:app` (Metro, pick device), `pnpm dev:ios` (Metro + iOS), `pnpm dev:android` (Metro + Android). Or use `pnpm --filter @korb/mobile <script>`; from `apps/mobile` use `pnpm dev`, `pnpm dev:ios`, `pnpm dev:android`.
+From **repo root**: **`pnpm dev:app`** starts API + Convex then **interactive** Metro (one terminal) — use **`i`** / **`a`** or Shift+I/A to open simulator/emulator. For **Metro only** (backend already running): **`pnpm dev:metro`** or from **`apps/mobile`**: **`pnpm dev`**.
 
-| Command                                                 | Description                                                  |
-| ------------------------------------------------------- | ------------------------------------------------------------ |
-| `pnpm dev:app` (root) / `pnpm dev` (in app)             | Start Metro; press i/a or Shift+I/Shift+A to pick simulator. |
-| `pnpm dev:ios` (root) / `pnpm dev:ios` (in app)         | Start Metro + auto-launch iOS simulator.                     |
-| `pnpm dev:android` (root) / `pnpm dev:android` (in app) | Start Metro + auto-launch Android emulator.                  |
-| `pnpm --filter @korb/mobile lint`                       | Run ESLint.                                                  |
-| `pnpm --filter @korb/mobile typecheck`                  | TypeScript check.                                            |
-| `pnpm --filter @korb/mobile test`                       | Run Jest tests (unit + integration).                         |
-| `pnpm --filter @korb/mobile build`                      | Export for iOS (or use build:android / build:ios).           |
-| `pnpm --filter @korb/mobile check`                      | Lint + typecheck.                                            |
-| `pnpm --filter @korb/mobile check:security`             | Security checks (secrets, auth layouts).                     |
-| `pnpm --filter @korb/mobile test:unit`                  | Unit tests only.                                             |
-| `pnpm --filter @korb/mobile test:integration`           | Integration tests only.                                      |
-| `pnpm --filter @korb/mobile test:component`             | Component tests only.                                        |
-| `pnpm --filter @korb/mobile test:watch`                 | Watch mode (all tests).                                      |
-| `pnpm --filter @korb/mobile test:coverage`              | Coverage report.                                             |
-| `pnpm --filter @korb/mobile test:quarantine`            | Quarantined (flaky) tests.                                   |
-| `pnpm --filter @korb/mobile test:mutation`              | Mutation testing (Stryker).                                  |
-| `pnpm --filter @korb/mobile test:e2e`                   | E2E tests (Maestro).                                         |
-| `pnpm --filter @korb/mobile storybook`                  | Start Storybook dev server.                                  |
-| `pnpm --filter @korb/mobile storybook:ios`              | Storybook with iOS simulator.                                |
-| `pnpm --filter @korb/mobile storybook:android`          | Storybook with Android emulator.                             |
-| `pnpm --filter @korb/mobile clean`                      | Clean build artifacts and deps.                              |
+| Command                                           | Description                                                                                                 |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `pnpm dev:app` (root)                             | Backend bg → interactive Metro (one terminal).                                                              |
+| `pnpm dev:metro` (root) / `pnpm dev` (in app)     | Metro only; press i/a or Shift+I/Shift+A to pick simulator.                                                 |
+| `pnpm dev:ios` / `pnpm dev:android` (in app only) | `expo start --ios` / `--android` — backend must run separately unless using `pnpm dev:app` from root first. |
+| `pnpm --filter @korb/mobile lint`                 | Run ESLint.                                                                                                 |
+| `pnpm --filter @korb/mobile typecheck`            | TypeScript check.                                                                                           |
+| `pnpm --filter @korb/mobile test`                 | Run Jest tests (unit + integration).                                                                        |
+| `pnpm --filter @korb/mobile build`                | Export for iOS (or use build:android / build:ios).                                                          |
+| `pnpm --filter @korb/mobile check`                | Lint + typecheck.                                                                                           |
+| `pnpm --filter @korb/mobile check:security`       | Security checks (secrets, auth layouts).                                                                    |
+| `pnpm --filter @korb/mobile test:unit`            | Unit tests only.                                                                                            |
+| `pnpm --filter @korb/mobile test:integration`     | Integration tests only.                                                                                     |
+| `pnpm --filter @korb/mobile test:component`       | Component tests only.                                                                                       |
+| `pnpm --filter @korb/mobile test:watch`           | Watch mode (all tests).                                                                                     |
+| `pnpm --filter @korb/mobile test:coverage`        | Coverage report.                                                                                            |
+| `pnpm --filter @korb/mobile test:quarantine`      | Quarantined (flaky) tests.                                                                                  |
+| `pnpm --filter @korb/mobile test:mutation`        | Mutation testing (Stryker).                                                                                 |
+| `pnpm --filter @korb/mobile test:e2e`             | E2E tests (Maestro).                                                                                        |
+| `pnpm --filter @korb/mobile storybook`            | Start Storybook dev server.                                                                                 |
+| `pnpm --filter @korb/mobile storybook:ios`        | Storybook with iOS simulator.                                                                               |
+| `pnpm --filter @korb/mobile storybook:android`    | Storybook with Android emulator.                                                                            |
+| `pnpm --filter @korb/mobile clean`                | Clean build artifacts and deps.                                                                             |
 
 From inside `apps/mobile`: use `pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test` (same script names).
 

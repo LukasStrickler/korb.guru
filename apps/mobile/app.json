@@ -16,7 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "guru.korb.mobile",
-      "associatedDomains": ["applinks:korb.guru"]
+      "associatedDomains": ["applinks:korb.guru"],
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
