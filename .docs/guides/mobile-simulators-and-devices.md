@@ -1,64 +1,55 @@
 # Mobile: simulators and devices
 
-How to run the app on different iOS simulators, Android emulators, and physical devices. The repo uses **Expo Go** by default; for custom native code or installing on specific devices you can use **development builds** (EAS / `expo-dev-client`).
+**Audience:** Developers running the mobile app on simulators, emulators, or devices.  
+**Doc type:** How-to.
 
-- [Root commands (auto-launch)](#root-commands-auto-launch) · [Expo Go: pick a simulator/emulator](#expo-go-pick-a-simulator-or-emulator) · [Development builds (not Expo Go)](#development-builds-not-expo-go)
+The repo uses **Expo Go** by default. For custom native code or device installs, use **development builds** (EAS / `expo-dev-client`). Prefer **`pnpm dev:app`** from the repo root so API and Convex start before Metro; see [Local development](local-dev.md).
 
-## Root commands (auto-launch)
+- [Root commands](#root-commands) · [Expo Go: pick a simulator/emulator](#expo-go-pick-a-simulator-or-emulator) · [Development builds (not Expo Go)](#development-builds-not-expo-go)
 
-From the repo root:
+## Root commands
 
-| Command                        | Effect                                                                                                                                   |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev:backend`             | Starts **everything except the app** (API, Convex, website, scraper, contracts). Run this first, then start the app in another terminal. |
-| `pnpm dev:app`                 | Starts Metro only; press **`i`** (iOS) or **`a`** (Android), or **Shift+I** / **Shift+A** to pick a simulator.                           |
-| `pnpm dev:ios`                 | Starts Metro and **auto-launches the default iOS Simulator** (Expo Go).                                                                  |
-| `pnpm dev:android`             | Starts Metro and **auto-launches the default Android Emulator** (Expo Go).                                                               |
-| From `apps/mobile`: `pnpm dev` | Same as `pnpm dev:app` (Metro only; use keyboard to pick device).                                                                        |
+| Command                | What it runs                                                                                                                                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`pnpm dev:app`**     | **Recommended:** API + Convex in the background, then **Expo in the foreground** — press **`i`** (iOS) or **`a`** (Android), or **Shift+I** / **Shift+A** to pick a simulator/emulator. One terminal. |
+| **`pnpm dev:metro`**   | Metro only — use when API/Convex already run. Same as `pnpm --filter @korb/mobile run dev`.                                                                                                           |
+| **`pnpm dev:backend`** | Backend only — DB + API + Convex, no Expo.                                                                                                                                                            |
+| **`pnpm dev`**         | Full monorepo (includes website, scraper, contracts).                                                                                                                                                 |
+
+**Default flow:** **`pnpm dev:app`** — no separate `dev:ios` / `dev:android` root scripts; Expo prompts let you open iOS or Android after Metro starts.
+
+From **`apps/mobile`**, you can still run **`pnpm dev:ios`** / **`pnpm dev:android`** to call `expo start --ios` / `--android` directly if you only need Metro with auto-open (backend must be running separately).
 
 ## Expo Go: pick a simulator or emulator
 
-With **Expo Go** (default), the app runs inside the Expo Go app. You can still target different simulators/emulators.
+With **Expo Go** (default), the app runs inside the Expo Go app. After **`pnpm dev:app`** (or **`pnpm dev:metro`**), use the Metro terminal:
+
+- **`i`** — open in iOS Simulator (default or most recently focused simulator).
+- **`a`** — open in Android emulator.
+- **Shift+I** / **Shift+A** — list simulators/emulators and pick one.
 
 ### iOS Simulator
 
-- **Default:** `pnpm dev:ios` opens the default simulator and launches Expo Go there.
-- **Pick a different simulator:** Run `pnpm dev:app` from root (or from `apps/mobile`: `pnpm dev`). When Metro is running, press **Shift+I** in the same terminal. The Expo CLI shows a list of installed simulators; choose one and it will boot (if needed) and open Expo Go on it.
-- **Manual option:** Open **Simulator** (Xcode → Open Developer Tool → Simulator, or `open -a Simulator`). Use **File → Open Simulator** to pick device and OS. Then press **`i`** in the Expo terminal (or run `pnpm dev:ios`); Expo targets the **most recently opened** simulator.
+- Open **Simulator** first if you want a specific device: Xcode → Open Developer Tool → Simulator, or `open -a Simulator`, then **File → Open Simulator**. Press **`i`** in the Expo terminal; Expo targets the **most recently opened** simulator.
 
 See [Expo: iOS Simulator](https://docs.expo.dev/workflow/ios-simulator/).
 
 ### Android Emulator
 
-- **Default:** `pnpm dev:android` opens the default Android emulator and launches Expo Go there.
-- **Pick a different emulator:** Start the emulator you want from **Android Studio → Device Manager** (or `emulator -avd <name>`). Run `pnpm dev:app` (or from `apps/mobile`: `pnpm dev`), then press **`a`** (or **Shift+A** if the CLI offers a list). Expo will target the running emulator.
-- Create and manage AVDs in Android Studio: **More Actions → Virtual Device Manager**. See [Expo: Android Studio Emulator](https://docs.expo.dev/workflow/android-studio-emulator/).
+- Start the emulator from **Android Studio → Device Manager** (or `emulator -avd <name>`), then press **`a`** in the Metro terminal, or **Shift+A** to choose.
 
-### Physical devices
+### Physical device
 
-With Expo Go you can also run on a **physical phone**: install **Expo Go** from the App Store / Play Store, ensure the device is on the same LAN as your machine. From `apps/mobile` run `pnpm dev` and scan the QR code (or press the appropriate key to open on a connected device if the CLI supports it).
+Install **Expo Go** on the phone; ensure same LAN as your machine. With Metro running (`pnpm dev:app` or `pnpm dev:metro`), scan the QR code from the terminal.
 
 ## Development builds (not Expo Go)
 
-**Expo Go** only supports a fixed set of native modules. If you need custom native code, different native config, or to install a single build on many devices/simulators, use a **development build** (your own build of the app that includes the Expo dev client).
+1. Build once (EAS or locally) and install on simulator/emulator/device.
+2. Start backend if needed (`pnpm dev:backend` or backend from `pnpm dev:app` flow), then Metro: **`pnpm dev:metro`** or from `apps/mobile`: **`pnpm dev`**.
+3. The dev client connects to Metro when the bundler is up.
 
-1. **Add the dev client:** In `apps/mobile`, run `npx expo install expo-dev-client`.
-2. **Configure EAS:** In `apps/mobile/eas.json`, add a profile that builds for the target (e.g. iOS Simulator). For simulator-only iOS builds, set `ios.simulator: true` in that profile (see [EAS: iOS Simulator builds](https://docs.expo.dev/build-reference/simulators/) and [Create a development build](https://docs.expo.dev/develop/development-builds/create-a-build/)).
-3. **Build:** e.g. `eas build -p ios --profile development` (or `--profile <simulator-profile>`). For iOS device builds you need an Apple Developer account and proper signing.
-4. **Install and run:** After the build, install the app on the simulator/emulator/device (EAS can prompt to install; or use `eas build:run -p ios --latest`). Then start the JS bundler with `npx expo start` (or `pnpm dev` in `apps/mobile`); the dev client will connect to Metro.
-
-With a development build installed, you can open **any** simulator or emulator that has that build, then start Metro and the app will connect. You are no longer limited to “Expo Go on one default device.”
-
-| Goal                                             | Approach                                                             |
-| ------------------------------------------------ | -------------------------------------------------------------------- |
-| Quick local dev, default simulator               | `pnpm dev:ios` or `pnpm dev:android`                                 |
-| Pick another simulator/emulator with Expo Go     | `pnpm dev:app`, then **Shift+I** (iOS) or **Shift+A** (Android)      |
-| Custom native code / any device with one install | Development build: `expo-dev-client` + EAS build + install on target |
-
-## See also
-
-- [Local development](local-dev.md) — env vars, ports, single-service commands
-- [Expo: iOS Simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo: Android Studio Emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [Expo: Create a development build](https://docs.expo.dev/develop/development-builds/create-a-build/)
-- [EAS: Build for iOS Simulators](https://docs.expo.dev/build-reference/simulators/)
+| Goal                                    | Command                                                                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend + interactive Metro             | **`pnpm dev:app`**                                                                                                                    |
+| Metro only                              | **`pnpm dev:metro`** or `cd apps/mobile && pnpm dev`                                                                                  |
+| Auto-open iOS/Android from app dir only | `cd apps/mobile && pnpm dev:ios` / `pnpm dev:android` (Expo scripts; backend must run separately unless you use `pnpm dev:app` first) |

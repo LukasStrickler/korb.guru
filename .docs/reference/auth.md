@@ -83,7 +83,7 @@ Current mobile auth completion path:
 
 **Production:** Set `CLERK_JWT_ISSUER_DOMAIN` (Clerk Frontend API URL). Optionally set `CLERK_AZP_ALLOWED` (comma-separated) to validate `azp`. Do not add an `audience` requirement here unless you also control the exact token shape being sent from mobile. [Clerk: Validate session tokens](https://clerk.com/docs/request-authentication/validate-session-tokens).
 
-**Troubleshooting "Invalid or expired token" (Verify protected API):** The API validates the Bearer token from `getToken()` against Clerk's JWKS. Ensure `CLERK_JWT_ISSUER_DOMAIN` is set in the same env the API reads (e.g. root `.env`) and matches your Clerk Frontend API URL exactly (no trailing slash). Use the same value as in the Convex Dashboard. If it still fails, check API logs for the underlying JWT error (`Invalid Clerk JWT: ...` at DEBUG level).
+**Troubleshooting "Invalid or expired token" (Verify protected API):** The API validates the Bearer token from `getToken()` against Clerk's JWKS. Ensure `CLERK_JWT_ISSUER_DOMAIN` is set in the same env the API reads (e.g. root `.env`) and points at your Clerk Frontend API URL. Use the same value as in the Convex Dashboard. If it still fails, check API logs for the underlying JWT error (`Invalid Clerk JWT: ...` at DEBUG level).
 
 ### `require_ingest_auth`
 

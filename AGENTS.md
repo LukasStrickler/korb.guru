@@ -106,7 +106,7 @@ packages/
 
 **Environment variables**
 
-- Add or update env vars in **root** `.env.example` (and in root `.env` for local use). Root dev scripts (`pnpm dev`, `pnpm dev:app`, `pnpm dev:ios`, etc.) load the root `.env` via dotenv-cli so all apps receive the same vars.
+- Add or update env vars in **root** `.env.example` (and in root `.env` for local use). Root dev scripts (`pnpm dev`, `pnpm dev:app`, etc.) load the root `.env` via dotenv-cli so all apps receive the same vars.
 - Do not add env vars only in app-level `.env.example` without updating the root file. Deployment uses platform-provided env, not the root file. See [.docs/guides/local-dev.md](.docs/guides/local-dev.md).
 
 **Agent skills**
@@ -186,7 +186,13 @@ packages/
 ```bash
 # Root (all services)
 pnpm install                # Install dependencies
-pnpm dev                    # Start every workspace dev process (mobile, website, api, convex, scraper, contracts)
+pnpm dev                    # All workspaces with dev (mobile, website, api, convex, scraper, contracts) + db:ready
+pnpm dev:backend            # App backend only: db:ready + API + Convex (foreground; no Expo)
+pnpm dev:app                # Backend in bg, then Expo interactive (one terminal; Ctrl+C stops both)
+pnpm dev:metro              # Metro only — use if API/Convex already running
+pnpm dev:full               # Alias for pnpm dev
+pnpm dev:all-but-app        # All except mobile (api, convex, website, scraper, contracts) + db:ready
+pnpm dev:contracts          # Contracts tsup watch only—when editing OpenAPI/codegen
 pnpm build                  # Build all (mobile, website, contracts)
 pnpm check                  # Full quality pass: format:check + lint + typecheck (use before commit)
 pnpm test # Run tests (Jest in mobile, Vitest in contracts/convex, pytest in api/scraper; website has placeholder)
@@ -208,11 +214,7 @@ pnpm db:seed                # Seed both (postgres + qdrant)
 pnpm db:reset               # Wipe both, start, wait healthy, migrate, seed (local only)
 # See [.docs/guides/database.md](.docs/guides/database.md) for all db commands (up, ready, down, migrate, migrate:generate, seed, reset, logs).
 
-# Single app (from root)
-pnpm dev:backend             # All except app (API, Convex, website, scraper, contracts)
-pnpm dev:app                 # App only; press i/a or Shift+I/Shift+A to pick simulator
-pnpm dev:ios                 # App + auto-launch iOS Simulator
-pnpm dev:android             # App + auto-launch Android Emulator
+# Single app (from root) — app workflow: see dev:app / dev:metro in block above
 pnpm dev:api
 pnpm dev:convex
 pnpm dev:website

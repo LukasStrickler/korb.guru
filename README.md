@@ -2,14 +2,31 @@
 
 Meal planning and shared shopping for households. One app for recipes, meal plans, shopping, and cooking.
 
-## Quick Start
+**Docs index:** [.docs/README.md](.docs/README.md) · **Local dev (how-to):** [.docs/guides/local-dev.md](.docs/guides/local-dev.md)
+
+## App development (mobile)
+
+Use **one command** — backend starts in the background, then Metro runs **last** in the same terminal so it stays **interactive** (choose iOS/Android with `i` / `a` or Shift+I / Shift+A):
+
+```bash
+pnpm install
+pnpm dev:app
+```
+
+- **`pnpm dev:app`** — `db:ready` (if Docker is up) → API + Convex in the background → **Expo in the foreground**. Ctrl+C stops Metro and the backend.
+- **`pnpm dev:metro`** — Metro only; use when API/Convex are already running (e.g. after `pnpm dev:backend`).
+- From **`apps/mobile`**, `pnpm dev` is Metro only (same as `dev:metro` from root).
+
+Full stack (website, scraper, contracts watch, etc.): **`pnpm dev`**. See [Local Development](.docs/guides/local-dev.md).
+
+## Quick Start (full monorepo)
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-`pnpm dev` runs all workspace dev processes (mobile, website, API, Convex, scraper, contracts). For API with Postgres and Qdrant: `pnpm db:ready` then see [Database setup](.docs/guides/database.md). [Local Development](.docs/guides/local-dev.md) has ports and env; [Authentication](.docs/guides/authentication.md) has sign-in setup.
+**`pnpm dev`** runs every workspace dev process + `db:ready`. For app work, prefer **`pnpm dev:app`** above. [Database setup](.docs/guides/database.md) · [Authentication](.docs/guides/authentication.md).
 
 ## Structure
 
@@ -37,7 +54,7 @@ packages/
 | Webhooks, scheduled jobs, ingestion API    | FastAPI | Long-running backend flows and ingest entrypoint |
 | Scraping and ingestion payload generation  | Scraper | Separate Python CLI, feeds FastAPI or Convex     |
 
-See [FastAPI <-> Convex Interaction](.docs/architecture/fastapi-convex-interaction.md) for cross-service patterns.
+See [FastAPI ↔ Convex](.docs/architecture/fastapi-convex-interaction.md) for cross-service patterns.
 
 ## Tech Stack
 
@@ -51,12 +68,22 @@ See [FastAPI <-> Convex Interaction](.docs/architecture/fastapi-convex-interacti
 
 ```bash
 pnpm install
-pnpm dev                  # full stack (mobile, website, api, convex, scraper, contracts)
-pnpm dev:backend         # everything except app (api, convex, website, scraper, contracts)
-pnpm dev:app             # app only; press i/a or Shift+I/Shift+A to pick simulator
-pnpm dev:ios             # app + auto-launch iOS simulator
-pnpm dev:android         # app + auto-launch Android emulator
-pnpm dev:api             # API only (and similarly dev:convex, dev:website)
+# App development (recommended)
+pnpm dev:app              # backend bg → interactive Expo (one terminal)
+pnpm dev:metro            # Metro only (backend already up)
+pnpm dev:backend          # API + Convex only (no Expo)
+
+# Full / other
+pnpm dev                  # entire monorepo + db:ready
+pnpm dev:full             # alias for pnpm dev
+pnpm dev:all-but-app      # all except mobile
+pnpm dev:contracts        # contracts watcher only
+
+# Single services
+pnpm dev:api
+pnpm dev:convex
+pnpm dev:website
+
 pnpm lint && pnpm typecheck && pnpm test
 pnpm contracts:generate   # OpenAPI → TypeScript
 pnpm build
@@ -64,9 +91,9 @@ pnpm build
 
 ## Documentation
 
-- [Local Development](.docs/guides/local-dev.md) — Ports, env vars, running mobile and API
-- [FastAPI <-> Convex Interaction](.docs/architecture/fastapi-convex-interaction.md) — Service boundaries and directional patterns
-- [Scraper Ingestion](.docs/architecture/scraper-ingestion.md) — Ingestion pipeline and Convex sync
+- [Local Development](.docs/guides/local-dev.md) — Ports, env vars, dev scripts
+- [FastAPI ↔ Convex](.docs/architecture/fastapi-convex-interaction.md) — Service boundaries and directional patterns
+- [Scraper ingestion](.docs/architecture/scraper-ingestion.md) — Ingestion pipeline and Convex sync
 - [Authentication](.docs/guides/authentication.md) — Sign-in/sign-up, protected routes
 - [Auth Reference](.docs/reference/auth.md) — Env vars, auth patterns, mobile helpers
 

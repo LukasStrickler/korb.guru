@@ -25,17 +25,19 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts mobile (Expo), website (Next.js on port 3001), API (port 8001), Convex dev, scraper dev, and the contracts watcher. See [Local Development](../.docs/guides/local-dev.md) for ports, CI scope, and Turbo behavior.
+**`pnpm dev`** starts **all** dev processes (mobile, website, API, Convex, scraper, contracts) plus DB ready when Docker is up. For **app development** (backend then interactive Metro in one terminal), use **`pnpm dev:app`**. See [Local Development](../.docs/guides/local-dev.md).
 
 ## Running one app
 
 From repo root (recommended):
 
 ```bash
-pnpm dev:backend         # everything except the app (api, convex, website, scraper, contracts)
-pnpm dev:app             # app only — Metro; press i/a or Shift+I/Shift+A to pick simulator
-pnpm dev:ios             # app + auto-launch iOS simulator
-pnpm dev:android         # app + auto-launch Android emulator
+pnpm dev                 # all — full stack
+pnpm dev:app             # recommended for app dev — backend bg, then interactive Expo
+pnpm dev:metro           # Metro only (backend already up)
+pnpm dev:backend         # backend only — api + convex + db (no Expo)
+pnpm dev:full            # alias for pnpm dev
+pnpm dev:all-but-app     # all except mobile
 pnpm dev:api             # API only
 pnpm dev:convex          # Convex only
 pnpm dev:website         # Website only
@@ -66,5 +68,5 @@ See [FastAPI ↔ Convex](../.docs/architecture/fastapi-convex-interaction.md) fo
 
 ## Docs
 
-- [Local Development](../.docs/guides/local-dev.md) — Ports, env, and what `pnpm dev` starts
-- [Root README](../README.md) — Project overview, quick start, and tech stack
+- [Local Development](../.docs/guides/local-dev.md) — Dev scripts (`pnpm dev`, `pnpm dev:app`, `pnpm dev:metro`, `pnpm dev:backend`), ports, env
+- [Root README](../README.md) — Project overview, app development quick start, tech stack
