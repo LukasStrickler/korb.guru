@@ -1,34 +1,10 @@
-import { ClerkProvider as ExpoClerkProvider } from "@clerk/clerk-expo";
-import * as SecureStore from "expo-secure-store";
+import { ClerkProvider } from "@clerk/clerk-expo";
+import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import Constants from "expo-constants";
 
 /**
- * Secure token cache for Clerk. Uses Expo SecureStore (encrypted storage), as
- * recommended by Clerk for Expo. Equivalent to the SDK's @clerk/clerk-expo/token-cache;
- * we use a custom implementation so tokenCache is always defined (SDK export is
- * undefined on web, which conflicts with exactOptionalPropertyTypes).
- */
-const tokenCache = {
-  async getToken(key: string) {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch (err) {
-      console.error("Failed to get token from secure store:", err);
-      return null;
-    }
-  },
-  async saveToken(key: string, value: string) {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch (err) {
-      console.error("Failed to save token to secure store:", err);
-    }
-  },
-};
-
-/**
- * Get the Clerk publishable key from environment variables
- * Uses EXPO_PUBLIC_ prefix for client-side env vars in Expo
+ * Get the Clerk publishable key from environment variables.
+ * Uses EXPO_PUBLIC_ prefix for client-side env vars in Expo.
  */
 const getClerkPublishableKey = (): string => {
   const key =
@@ -46,12 +22,9 @@ const getClerkPublishableKey = (): string => {
   return key;
 };
 
-/** Clerk Provider; use with clerkConfig and tokenCache. */
-export const ClerkProvider = ExpoClerkProvider;
+export { ClerkProvider, tokenCache };
 
 export const clerkConfig = {
   publishableKey: getClerkPublishableKey(),
   tokenCache,
 };
-
-export { tokenCache };

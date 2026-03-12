@@ -14,18 +14,18 @@ src/types/         # TypeScript declarations
 
 ## WHERE TO LOOK
 
-| Task                 | Location                                                                                            | Notes                                                                                                                                                                   |
-| -------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Add screen           | `src/app/(home)/` or `(auth)/`                                                                      | File-based routing; groups organize navigation                                                                                                                          |
-| Add deep link        | `src/app/go/[...slug].tsx`                                                                          | Catch-all handler for `korbguru://` and `https://korb.guru/go/`                                                                                                         |
-| Add component        | `src/components/`                                                                                   | Use `accessible/` subfolder for a11y wrappers                                                                                                                           |
-| Add API call         | `src/lib/api.ts`                                                                                    | Use `apiFetchWithAuth()` for protected endpoints                                                                                                                        |
-| Add analytics        | `src/lib/posthog.ts`                                                                                | Use `trackEvent()` helper                                                                                                                                               |
-| Styling              | `global.css`                                                                                        | Tailwind classes via NativeWind                                                                                                                                         |
-| Add unit test        | `src/__tests__/**/*.unit.test.{ts,tsx}`                                                             | Jest; do not put tests in `src/app/`                                                                                                                                    |
-| Add integration test | `src/__tests__/**/*.integration.test.{ts,tsx}`                                                      | Use `expo-router/testing-library`; keep tests out of `src/app/`                                                                                                         |
-| Run tests            | `pnpm test`, `pnpm test:unit`, `pnpm test:integration`, `pnpm test:component`, `pnpm test:coverage` | See root [AGENTS.md](../../AGENTS.md) § TESTS and [.docs/guides/testing.md](../../.docs/guides/testing.md)                                                              |
-| Add/update env var   | **Root** `.env.example` (and root `.env` for local)                                                 | Mobile uses `EXPO_PUBLIC_*` from root when running via `pnpm dev` / `pnpm dev:mobile` from repo root. See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
+| Task                 | Location                                                                                            | Notes                                                                                                                                                                                                      |
+| -------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add screen           | `src/app/(home)/` or `(auth)/`                                                                      | File-based routing; groups organize navigation                                                                                                                                                             |
+| Add deep link        | `src/app/go/[...slug].tsx`                                                                          | Catch-all handler for `korbguru://` and `https://korb.guru/go/`                                                                                                                                            |
+| Add component        | `src/components/`                                                                                   | Use `accessible/` subfolder for a11y wrappers                                                                                                                                                              |
+| Add API call         | `src/lib/api.ts`                                                                                    | Use `apiFetchWithAuth()` for protected endpoints                                                                                                                                                           |
+| Add analytics        | `src/lib/posthog.ts`                                                                                | Use `trackEvent()` helper                                                                                                                                                                                  |
+| Styling              | `global.css`                                                                                        | Tailwind classes via NativeWind                                                                                                                                                                            |
+| Add unit test        | `src/__tests__/**/*.unit.test.{ts,tsx}`                                                             | Jest; do not put tests in `src/app/`                                                                                                                                                                       |
+| Add integration test | `src/__tests__/**/*.integration.test.{ts,tsx}`                                                      | Use `expo-router/testing-library`; keep tests out of `src/app/`                                                                                                                                            |
+| Run tests            | `pnpm test`, `pnpm test:unit`, `pnpm test:integration`, `pnpm test:component`, `pnpm test:coverage` | See root [AGENTS.md](../../AGENTS.md) § TESTS and [.docs/guides/testing.md](../../.docs/guides/testing.md)                                                                                                 |
+| Add/update env var   | **Root** `.env.example` (and root `.env` for local)                                                 | Mobile uses `EXPO_PUBLIC_*` from root when running via `pnpm dev` / `pnpm dev:app` / `pnpm dev:ios` / `pnpm dev:android` from repo root. See [.docs/guides/local-dev.md](../../.docs/guides/local-dev.md). |
 
 ## CONVENTIONS
 
@@ -44,6 +44,11 @@ src/types/         # TypeScript declarations
 **Auth**
 
 - Clerk with token cache via `expo-secure-store` (see `src/lib/clerk.ts`)
+- Current validated package is `@clerk/clerk-expo@2.19.31`
+- Unified auth screen lives at `src/app/(auth)/index.tsx`
+- Completion path for custom flows is `useClerk().setActive({ session: createdSessionId })`
+- On the pinned stack, sign-in email verification uses `signIn.create({ identifier })`, `prepareFirstFactor({ strategy: "email_code", emailAddressId })`, and `attemptFirstFactor({ strategy: "email_code", code })`
+- On the pinned stack, sign-up email verification uses `prepareEmailAddressVerification()` and `attemptEmailAddressVerification()`
 - Protected routes use layout-level redirects, not route guards
 
 **Backend**
@@ -65,3 +70,4 @@ src/types/         # TypeScript declarations
 - Do not expose server-only secrets to mobile (use `EXPO_PUBLIC_*` prefix for client env vars only)
 - Do not edit generated files: `expo-env.d.ts`, `.expo/types/router.d.ts`
 - Do not use `pages/` directory (App Router only)
+- Do not upgrade Clerk Expo packages or swap auth methods without revalidating Convex auth on device. See [Auth reference](../../.docs/reference/auth.md) and [Clerk downgrade report](../../.docs/archive/clerk-expo-convex-auth-downgrade-2026-03.md).

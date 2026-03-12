@@ -6,8 +6,12 @@
   "scripts": {
     "check": "pnpm format:check && pnpm lint && pnpm typecheck",
     "dev": "dotenv -- turbo run dev",
-    "dev:mobile": "dotenv -- turbo run dev --filter=@korb/mobile",
+    "dev:backend": "(docker info >/dev/null 2>&1 && pnpm db:ready) || echo 'Docker not running — skipping DB. Start Docker and run pnpm db:ready for /examples.' && dotenv -- turbo run dev --filter=!@korb/mobile",
+    "dev:app": "dotenv -- pnpm --filter @korb/mobile run dev",
+    "dev:ios": "dotenv -- pnpm --filter @korb/mobile run dev:ios",
+    "dev:android": "dotenv -- pnpm --filter @korb/mobile run dev:android",
     "dev:api": "dotenv -- turbo run dev --filter=@korb/api",
+    "api:health": "curl -sf http://localhost:${API_PORT:-8001}/health >/dev/null && echo 'API OK' || (echo \"API not reachable at http://localhost:${API_PORT:-8001}. Run: pnpm dev:backend\" && exit 1)",
     "dev:convex": "dotenv -- turbo run dev --filter=@korb/convex",
     "dev:website": "dotenv -- turbo run dev --filter=@korb/website",
     "lint": "turbo run lint",

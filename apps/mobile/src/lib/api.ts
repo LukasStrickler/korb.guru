@@ -4,16 +4,55 @@ type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
 
+/**
+ * In dev, when EXPO_PUBLIC_API_BASE_URL is localhost/127.0.0.1, physical devices
+ * cannot reach it (localhost = the device). Use the Metro bundler host so the
+ * app talks to the same machine that runs the API.
+ */
+function getDevServerHost(): string | null {
+  if (typeof __DEV__ !== "boolean" || !__DEV__) return null;
+  try {
+    const Constants = require("expo-constants").default;
+    const manifest = Constants.expoConfig ?? Constants.manifest;
+    const debuggerHost =
+      manifest?.debuggerHost ??
+      (typeof manifest?.hostUri === "string"
+        ? manifest.hostUri.replace(/^exp:\/\//, "").split("/")[0]
+        : null);
+    if (debuggerHost && typeof debuggerHost === "string") {
+      const host = debuggerHost.split(":")[0];
+      if (host && host !== "localhost" && host !== "127.0.0.1") return host;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 /** Read at call time so tests can set process.env before calling (babel-preset-expo inlines direct process.env.EXPO_PUBLIC_*). */
-const getApiBaseUrl = (): string => {
+export const getApiBaseUrl = (): string => {
   const env = process.env;
-  const baseUrl = env["EXPO_PUBLIC_API_BASE_URL"];
+  let baseUrl = env["EXPO_PUBLIC_API_BASE_URL"];
 
   if (!baseUrl) {
     throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in mobile environment");
   }
 
-  return baseUrl.replace(/\/$/, "");
+  baseUrl = baseUrl.replace(/\/$/, "");
+
+  const devHost = getDevServerHost();
+  if (devHost) {
+    const match = baseUrl.match(
+      /^https?:\/\/(localhost|127\.0\.0\.1)(?::(\d+))?/,
+    );
+    if (match) {
+      const port = match[2] ?? "8000";
+      const protocol = baseUrl.startsWith("https") ? "https" : "http";
+      return `${protocol}://${devHost}:${port}`;
+    }
+  }
+
+  return baseUrl;
 };
 
 /** Generate a request ID for correlation with backend logs. */

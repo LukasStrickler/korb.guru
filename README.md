@@ -51,10 +51,14 @@ See [FastAPI <-> Convex Interaction](.docs/architecture/fastapi-convex-interacti
 
 ```bash
 pnpm install
-pnpm dev                         # full stack dev (mobile, website, api, convex, scraper)
-pnpm --filter @korb/mobile dev   # single app
+pnpm dev                  # full stack (mobile, website, api, convex, scraper, contracts)
+pnpm dev:backend         # everything except app (api, convex, website, scraper, contracts)
+pnpm dev:app             # app only; press i/a or Shift+I/Shift+A to pick simulator
+pnpm dev:ios             # app + auto-launch iOS simulator
+pnpm dev:android         # app + auto-launch Android emulator
+pnpm dev:api             # API only (and similarly dev:convex, dev:website)
 pnpm lint && pnpm typecheck && pnpm test
-pnpm contracts:generate          # OpenAPI → TypeScript
+pnpm contracts:generate   # OpenAPI → TypeScript
 pnpm build
 ```
 

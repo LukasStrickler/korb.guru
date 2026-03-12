@@ -12,7 +12,7 @@ export function SignOutButton() {
     try {
       resetUser();
       await signOut();
-      router.replace("/(auth)/sign-in" as Href);
+      router.replace("/(auth)" as Href);
     } catch (err) {
       console.error("Sign out error:", err);
     }

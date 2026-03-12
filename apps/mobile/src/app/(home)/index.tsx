@@ -1,22 +1,34 @@
 import { SignOutButton } from "@/components/sign-out-button";
-import { ApiError, deleteAccount, fetchExamples, fetchMe } from "@/lib/api";
+import {
+  ApiError,
+  deleteAccount,
+  fetchExamples,
+  fetchMe,
+  getApiBaseUrl,
+} from "@/lib/api";
 import type { ExampleItem } from "@korb/contracts";
 import { identifyUser } from "@/lib/posthog";
 import { useAuth } from "@clerk/clerk-expo";
 import { useClerk } from "@clerk/clerk-expo";
-import { useMutation, useQuery } from "convex/react";
+import {
+  Authenticated,
+  AuthLoading,
+  Unauthenticated,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import { makeFunctionReference } from "convex/server";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const getCurrentRef = makeFunctionReference<
   "query",
@@ -42,7 +54,38 @@ const deleteMyAccountRef = makeFunctionReference<
   void
 >("users:deleteMyAccount");
 
-export default function HomeScreen() {
+export function HomeAuthGate() {
+  return (
+    <>
+      <AuthLoading>
+        <SafeAreaView className="flex-1 bg-white">
+          <View className="flex-1 items-center justify-center p-6">
+            <ActivityIndicator size="large" color="#0a7ea4" />
+            <Text className="mt-4 text-base text-gray-500">
+              Connecting to Convex…
+            </Text>
+          </View>
+        </SafeAreaView>
+      </AuthLoading>
+      <Unauthenticated>
+        <SafeAreaView className="flex-1 bg-white">
+          <View className="flex-1 items-center justify-center p-6 gap-4">
+            <Text className="text-center text-base text-gray-700">
+              We couldn&apos;t load your account. Sign out and try again.
+            </Text>
+            <SignOutButton />
+          </View>
+        </SafeAreaView>
+      </Unauthenticated>
+      <Authenticated>
+        <HomeContent />
+      </Authenticated>
+    </>
+  );
+}
+
+/** Main home content. Only mounted when Convex has validated the Clerk token (Authenticated). */
+function HomeContent() {
   const { getToken, userId: clerkUserId } = useAuth();
   const { signOut } = useClerk();
   const user = useQuery(getCurrentRef, {});
@@ -63,11 +106,12 @@ export default function HomeScreen() {
   >("idle");
   const [examplesError, setExamplesError] = useState<string | null>(null);
 
+  // Sync Clerk user to Convex as soon as we're signed in and getCurrent has resolved.
+  // When user === null we still sync to create the Convex row (avoids "User not found" on setHandle).
   useEffect(() => {
-    if (user === undefined) return;
-    if (user === null) return;
+    if (!clerkUserId || user === undefined) return;
     syncFromClerk().catch(console.error);
-  }, [user, syncFromClerk]);
+  }, [clerkUserId, user, syncFromClerk]);
 
   useEffect(() => {
     if (clerkUserId) identifyUser(clerkUserId);
@@ -85,7 +129,12 @@ export default function HomeScreen() {
     try {
       await setHandle({ handle: trimmed });
     } catch (e) {
-      setHandleError(e instanceof Error ? e.message : "Failed to set handle");
+      const msg = e instanceof Error ? e.message : "Failed to set handle";
+      setHandleError(
+        msg === "Not authenticated"
+          ? "Your session expired. Sign out and try again."
+          : msg,
+      );
     } finally {
       setIsSettingHandle(false);
     }
@@ -132,16 +181,7 @@ export default function HomeScreen() {
     );
   };
 
-  if (user === undefined) {
-    return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-1 items-center justify-center p-6">
-          <ActivityIndicator size="large" color="#0a7ea4" />
-          <Text className="mt-4 text-base text-gray-500">Loading…</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const canSaveHandle = handleInput.trim().length > 0;
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -156,7 +196,7 @@ export default function HomeScreen() {
       >
         <View className="gap-4">
           <Text className="text-3xl font-bold text-gray-900">Welcome</Text>
-          {user?.name && (
+          {user?.name != null && (
             <Text className="text-base text-gray-600">
               {user.name}
               {user.email ? ` · ${user.email}` : ""}
@@ -186,8 +226,8 @@ export default function HomeScreen() {
               />
               <Pressable
                 onPress={onSaveHandle}
-                disabled={isSettingHandle || !handleInput.trim()}
-                className={`rounded-xl bg-[#0a7ea4] px-4 py-3 justify-center ${isSettingHandle || !handleInput.trim() ? "opacity-60" : ""} active:opacity-90`}
+                disabled={!canSaveHandle || isSettingHandle}
+                className={`rounded-xl bg-[#0a7ea4] px-4 py-3 justify-center ${!canSaveHandle || isSettingHandle ? "opacity-60" : ""} active:opacity-90`}
               >
                 {isSettingHandle ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -266,12 +306,33 @@ export default function HomeScreen() {
                   setExamplesLoad("ok");
                 } catch (e) {
                   setExamplesLoad("error");
-                  setExamplesError(
+                  const raw =
                     e instanceof ApiError && e.detail
                       ? e.detail
                       : e instanceof Error
                         ? e.message
-                        : "Request failed",
+                        : "Request failed";
+                  const is503Db =
+                    e instanceof ApiError &&
+                    e.status === 503 &&
+                    (raw.toLowerCase().includes("database") ||
+                      raw.toLowerCase().includes("connection refused"));
+                  const isNetwork =
+                    raw === "Network request failed" ||
+                    raw.toLowerCase().includes("network");
+                  const baseUrl = (() => {
+                    try {
+                      return getApiBaseUrl();
+                    } catch {
+                      return "EXPO_PUBLIC_API_BASE_URL not set";
+                    }
+                  })();
+                  setExamplesError(
+                    is503Db
+                      ? "Postgres not running. Run: pnpm db:up then pnpm db:migrate (and pnpm db:seed:postgres for example data)."
+                      : isNetwork
+                        ? `Can't reach ${baseUrl}. Start API first: pnpm dev:backend (or pnpm dev:api). Then retry.`
+                        : raw,
                   );
                 }
               }}
@@ -333,4 +394,8 @@ export default function HomeScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+export default function HomeScreen() {
+  return <HomeAuthGate />;
 }

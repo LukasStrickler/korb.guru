@@ -96,7 +96,6 @@ http.route({
         "svix-timestamp": svixTimestamp,
         "svix-signature": svixSignature,
       });
-      console.log("[Clerk Webhook] Signature verified successfully");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(
@@ -138,13 +137,7 @@ http.route({
         });
       }
 
-      // TODO: Implement user cleanup
-      // 1. Find user by clerkId
-      // 2. Delete user's recipes
-      // 3. Delete user record
-      // For now, just log the event
-      console.log(`[Clerk Webhook] User deleted: ${clerkId}`);
-
+      // TODO: Implement user cleanup (find by clerkId, delete recipes, delete user record)
       return new Response(
         JSON.stringify({
           received: true,

@@ -20,8 +20,8 @@ What production looks like for korb.guru: traceability, env model, service seams
 | Concern        | Local                     | Staging/Prod                              |
 | -------------- | ------------------------- | ----------------------------------------- |
 | Convex         | `convex dev`              | Prod deployment URL.                      |
-| FastAPI        | `localhost:8000`          | Service DNS, health, graceful shutdown.   |
-| Mobile API URL | localhost / 10.0.2.2:8000 | e.g. `https://api.korb.guru`, TLS.        |
+| FastAPI        | `localhost:8001`          | Service DNS, health, graceful shutdown.   |
+| Mobile API URL | localhost / 10.0.2.2:8001 | e.g. `https://api.korb.guru`, TLS.        |
 | Clerk          | `pk_test_*` / `sk_test_*` | Production keys.                          |
 | CORS           | `localhost:*`             | Production origins only (`CORS_ORIGINS`). |
 

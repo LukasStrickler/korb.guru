@@ -106,7 +106,7 @@ packages/
 
 **Environment variables**
 
-- Add or update env vars in **root** `.env.example` (and in root `.env` for local use). Root dev scripts (`pnpm dev`, `pnpm dev:mobile`, etc.) load the root `.env` via dotenv-cli so all apps receive the same vars.
+- Add or update env vars in **root** `.env.example` (and in root `.env` for local use). Root dev scripts (`pnpm dev`, `pnpm dev:app`, `pnpm dev:ios`, etc.) load the root `.env` via dotenv-cli so all apps receive the same vars.
 - Do not add env vars only in app-level `.env.example` without updating the root file. Deployment uses platform-provided env, not the root file. See [.docs/guides/local-dev.md](.docs/guides/local-dev.md).
 
 **Agent skills**
@@ -127,6 +127,11 @@ packages/
 
 - Do not duplicate auth responsibility: FastAPI verifies Clerk JWT, Convex uses Clerk auth, mobile consumes
 - Do not duplicate canonical ownership between FastAPI and Convex
+- Current validated mobile stack is `@clerk/clerk-expo@2.19.31` with a unified email-code auth screen in `apps/mobile/src/app/(auth)/index.tsx`
+- Mobile custom-flow completion should use `useClerk().setActive({ session: createdSessionId })`
+- On the pinned mobile Clerk stack, sign-in email verification should use `signIn.create({ identifier })`, `prepareFirstFactor({ strategy: "email_code", emailAddressId })`, and `attemptFirstFactor({ strategy: "email_code", code })`
+- On the pinned mobile Clerk stack, sign-up email verification should use `prepareEmailAddressVerification()` and `attemptEmailAddressVerification()`
+- See [.docs/guides/authentication.md](.docs/guides/authentication.md), [.docs/reference/auth.md](.docs/reference/auth.md), and [.docs/archive/clerk-expo-convex-auth-downgrade-2026-03.md](.docs/archive/clerk-expo-convex-auth-downgrade-2026-03.md)
 
 **Generated files**
 
@@ -163,7 +168,7 @@ packages/
 - Auth: Clerk JWT (placeholder in dev, verify with JWKS in prod)
 - Ingest: API key + per-IP exponential backoff
 - Analytics: PostHog server-side (flush after every request)
-- Docs: OpenAPI at `http://localhost:8000/docs`
+- Docs: OpenAPI at `http://localhost:8001/docs`
 
 **Convex**
 
@@ -204,7 +209,10 @@ pnpm db:reset               # Wipe both, start, wait healthy, migrate, seed (loc
 # See [.docs/guides/database.md](.docs/guides/database.md) for all db commands (up, ready, down, migrate, migrate:generate, seed, reset, logs).
 
 # Single app (from root)
-pnpm dev:mobile
+pnpm dev:backend             # All except app (API, Convex, website, scraper, contracts)
+pnpm dev:app                 # App only; press i/a or Shift+I/Shift+A to pick simulator
+pnpm dev:ios                 # App + auto-launch iOS Simulator
+pnpm dev:android             # App + auto-launch Android Emulator
 pnpm dev:api
 pnpm dev:convex
 pnpm dev:website
@@ -228,7 +236,7 @@ pnpm --filter @korb/mobile test:e2e        # Maestro E2E (built app + simulator)
 pnpm test:reports                          # Serve coverage + mutation reports on port 9327
 
 # API-specific (Python)
-cd apps/api && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+cd apps/api && uv run uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload
 uv run ruff check src scripts
 uv run pytest
 
@@ -256,7 +264,7 @@ Mobile uses **Jest** (unit + integration) and **Maestro** (E2E). Flaky tests are
 
 **Port map**
 
-- FastAPI: `http://localhost:8000`
+- FastAPI: `http://localhost:8001`
 - Expo Metro: `http://localhost:8081`
 - Convex: Set `EXPO_PUBLIC_CONVEX_URL` to dev deployment URL
 - Website: `http://localhost:3001`
@@ -264,7 +272,7 @@ Mobile uses **Jest** (unit + integration) and **Maestro** (E2E). Flaky tests are
 **Mobile env (Android emulator)**
 
 ```env
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8001
 ```
 
 **Pre-commit**

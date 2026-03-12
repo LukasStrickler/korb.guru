@@ -1,25 +1,24 @@
 import type { PropsWithChildren } from "react";
 
 import { useAuth } from "@clerk/clerk-expo";
-import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
 
-const getConvexUrl = (): string => {
-  const convexUrl = process.env["EXPO_PUBLIC_CONVEX_URL"];
+const BAD_CONVEX_URLS = ["", "your-convex-url", "https://example.convex.cloud"];
 
-  if (!convexUrl) {
-    console.warn(
-      "Warning: EXPO_PUBLIC_CONVEX_URL is not set. Convex queries will fail until it is configured.",
+function getConvexUrl(): string {
+  const url = process.env["EXPO_PUBLIC_CONVEX_URL"] ?? "";
+  if (!url || BAD_CONVEX_URLS.includes(url)) {
+    throw new Error(
+      "EXPO_PUBLIC_CONVEX_URL is missing or placeholder. Run `pnpm --filter @korb/convex dev` and set EXPO_PUBLIC_CONVEX_URL in .env to the deployment URL.",
     );
-    return "https://example.convex.cloud";
   }
+  return url;
+}
 
-  return convexUrl;
-};
+const convexUrl = getConvexUrl();
+const convex = new ConvexReactClient(convexUrl);
 
-const convex = new ConvexReactClient(getConvexUrl());
-
-/** Convex + Clerk: passes auth token to Convex. Must be inside ClerkProvider. */
 export function ConvexClientProvider({ children }: PropsWithChildren) {
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>

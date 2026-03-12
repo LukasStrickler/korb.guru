@@ -25,17 +25,20 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts mobile (Expo), website (Next.js on port 3001), API (port 8000), Convex dev, scraper dev, and the contracts watcher. See [Local Development](../.docs/guides/local-dev.md) for ports, CI scope, and Turbo behavior.
+`pnpm dev` starts mobile (Expo), website (Next.js on port 3001), API (port 8001), Convex dev, scraper dev, and the contracts watcher. See [Local Development](../.docs/guides/local-dev.md) for ports, CI scope, and Turbo behavior.
 
 ## Running one app
 
 From repo root (recommended):
 
 ```bash
-pnpm --filter @korb/mobile dev
-pnpm --filter @korb/website dev
-pnpm --filter @korb/api dev
-pnpm --filter @korb/convex dev
+pnpm dev:backend         # everything except the app (api, convex, website, scraper, contracts)
+pnpm dev:app             # app only — Metro; press i/a or Shift+I/Shift+A to pick simulator
+pnpm dev:ios             # app + auto-launch iOS simulator
+pnpm dev:android         # app + auto-launch Android emulator
+pnpm dev:api             # API only
+pnpm dev:convex          # Convex only
+pnpm dev:website         # Website only
 pnpm --filter @korb/scraper dev
 ```
 

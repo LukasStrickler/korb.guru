@@ -25,7 +25,7 @@ flowchart LR
   end
   M --> Metro
   W --> Next["Next.js :3001"]
-  A --> FastAPI["FastAPI :8000"]
+  A --> FastAPI["FastAPI :8001"]
   C --> Convex["Convex"]
   S --> stdout
   X --> watch
@@ -35,12 +35,12 @@ flowchart LR
 | ----------------- | ------------------------- |
 | `@korb/mobile`    | Expo Metro.               |
 | `@korb/website`   | Next.js dev server.       |
-| `@korb/api`       | FastAPI on port 8000.     |
+| `@korb/api`       | FastAPI on port 8001.     |
 | `@korb/convex`    | Convex dev backend.       |
 | `@korb/scraper`   | Scraper mock output.      |
 | `@korb/contracts` | Shared contracts watcher. |
 
-Single app from root: `pnpm dev:mobile`, `pnpm dev:api`, `pnpm dev:convex`, `pnpm dev:website`. Or `pnpm --filter @korb/<name> dev` for any workspace.
+Single app from root: `pnpm dev:app`, `pnpm dev:ios`, `pnpm dev:android`, `pnpm dev:api`, `pnpm dev:convex`, `pnpm dev:website`. Backend only (no app): `pnpm dev:backend`. Or `pnpm --filter @korb/<name> dev` for any workspace.
 
 ## Turbo behavior today
 
@@ -77,7 +77,7 @@ Important scope notes:
 
 | Service    | Port                     | URL                                                                          |
 | ---------- | ------------------------ | ---------------------------------------------------------------------------- |
-| FastAPI    | 8000                     | http://localhost:8000                                                        |
+| FastAPI    | 8001                     | http://localhost:8001                                                        |
 | Expo Metro | 8081                     | http://localhost:8081                                                        |
 | Convex     | —                        | Set `EXPO_PUBLIC_CONVEX_URL` in mobile env.                                  |
 | Postgres   | 5432                     | localhost (see [Local data services](#local-data-services-postgres--qdrant)) |
@@ -97,14 +97,14 @@ Stack is defined in root **`compose.yml`** (local only); config and seed live in
 You can use a **single root `.env`** so there is one place to define and manage variables for local dev:
 
 1. Copy root `.env.example` to **root** `.env`: `cp .env.example .env`
-2. Run dev from the repo root: `pnpm dev` or `pnpm dev:mobile`, `pnpm dev:api`, etc.
+2. Run dev from the repo root: `pnpm dev` or `pnpm dev:app`, `pnpm dev:ios`, `pnpm dev:api`, etc.
 
 Root scripts use **dotenv-cli**: they run `dotenv -- turbo run dev`, which loads the root `.env` and injects it into the environment for every app Turbo starts. So mobile, API, Convex, website, and scraper all receive the same variables when you run from root.
 
 **Fallbacks when not using root scripts:**
 
 - **API** — If you run the API from `apps/api` (e.g. `cd apps/api && uv run uvicorn ...`), the app loads root `.env` automatically via `python-dotenv` so the same file still works.
-- **Mobile** — Metro is configured to load `.env` from the workspace root when you start from `apps/mobile`; if you run from root with `pnpm dev:mobile`, dotenv-cli already injects env.
+- **Mobile** — Metro is configured to load `.env` from the workspace root when you start from `apps/mobile`; if you run from root with `pnpm dev:app` or `pnpm dev:ios`, dotenv-cli already injects env.
 
 Per-app `.env` files (e.g. `apps/mobile/.env`) are still supported: app-specific files can override or supplement the root file where tools support it.
 
@@ -125,7 +125,7 @@ These must be set before running the corresponding service:
 | ----------------------------------- | ------- | ----------------------------------------------------------------- |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Mobile  | https://dashboard.clerk.com (pk*test*\* for dev)                  |
 | `EXPO_PUBLIC_CONVEX_URL`            | Mobile  | Run `pnpm --filter @korb/convex dev` to get URL                   |
-| `EXPO_PUBLIC_API_BASE_URL`          | Mobile  | `http://localhost:8000` (iOS) or `http://10.0.2.2:8000` (Android) |
+| `EXPO_PUBLIC_API_BASE_URL`          | Mobile  | `http://localhost:8001` (iOS) or `http://10.0.2.2:8001` (Android) |
 | `CONVEX_DEPLOYMENT`                 | Convex  | Same as `EXPO_PUBLIC_CONVEX_URL` but without the client key       |
 
 ### Optional for local development
@@ -155,10 +155,10 @@ See [Auth reference](../reference/auth.md) for full details.
 
 ```env
 # iOS Simulator
-EXPO_PUBLIC_API_BASE_URL=http://localhost:8000
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8001
 
 # Android Emulator
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8001
 ```
 
 ## Mobile: check and security
@@ -167,12 +167,17 @@ From `apps/mobile`: `pnpm run check` (lint + typecheck), `pnpm run check:securit
 
 ## Running one service only
 
-| Command            | Workspace     |
-| ------------------ | ------------- |
-| `pnpm dev:mobile`  | @korb/mobile  |
-| `pnpm dev:api`     | @korb/api     |
-| `pnpm dev:convex`  | @korb/convex  |
-| `pnpm dev:website` | @korb/website |
+| Command            | Workspace      | Notes                                                                   |
+| ------------------ | -------------- | ----------------------------------------------------------------------- |
+| `pnpm dev:backend` | all except app | API, Convex, website, scraper, contracts.                               |
+| `pnpm dev:app`     | @korb/mobile   | Metro only; press `i`/`a` or **Shift+I**/**Shift+A** to pick simulator. |
+| `pnpm dev:ios`     | @korb/mobile   | Metro + **auto-launch iOS Simulator**                                   |
+| `pnpm dev:android` | @korb/mobile   | Metro + auto-launch Android Emulator                                    |
+| `pnpm dev:api`     | @korb/api      |                                                                         |
+| `pnpm dev:convex`  | @korb/convex   |                                                                         |
+| `pnpm dev:website` | @korb/website  |                                                                         |
+
+To run on different simulators or use development builds instead of Expo Go, see [Mobile: simulators and devices](mobile-simulators-and-devices.md).
 
 Any workspace: `pnpm --filter @korb/api dev`, etc.
 
