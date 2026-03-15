@@ -12,6 +12,12 @@ from apify import Actor
 
 from src.routes import scrape_aldi, scrape_coop, scrape_denner, scrape_lidl, scrape_migros
 
+# Configure root logger so output appears in Apify console
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 SCRAPER_MAP = {
@@ -85,7 +91,13 @@ async def main():
             retailers = ALL_RETAILERS
         if isinstance(retailers, str):
             retailers = [retailers]
-        max_items = actor_input.get("maxItems", 200)
+        # Filter out invalid retailer names
+        retailers = [r for r in retailers if r in SCRAPER_MAP]
+        if not retailers:
+            logger.error("No valid retailers specified")
+            await Actor.set_status_message("Error: no valid retailers")
+            return
+        max_items = max(1, actor_input.get("maxItems", 200))
         region = actor_input.get("region", "zurich")
 
         logger.info(
