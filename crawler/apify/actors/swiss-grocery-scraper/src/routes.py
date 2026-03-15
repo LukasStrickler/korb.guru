@@ -413,12 +413,7 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
     except Exception as e:
         logger.warning(f"Lidl flyer API failed: {e}")
 
-    # 2. Scrape product offers page via Playwright
-    if len(products) < max_items:
-        try:
-            await _scrape_lidl_offers_page(products, max_items, region)
-        except Exception as e:
-            logger.warning(f"Lidl offers page failed: {e}")
+    # Note: Lidl has no dedicated offers page; flyer API is the primary source
 
     logger.info(f"Lidl: {len(products)} products total")
     return products[:max_items]
@@ -435,10 +430,15 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
             logger.warning(f"Lidl flyer page: HTTP {resp.status_code}")
             return
 
-        # Extract flyer identifiers from the page HTML
-        slugs = re.findall(
-            r'data-track-name="([^"]+)"[^>]*data-track-type="flyer"', resp.text
-        )
+        # Extract flyer slugs from href attributes (e.g. /l/de/prospekt/lidl-aktuell-kw12/ar/0)
+        slugs = re.findall(r"/prospekt/([^/]+)/ar/", resp.text)
+        # Deduplicate while preserving order
+        seen_slugs: list[str] = []
+        for s in slugs:
+            if s not in seen_slugs:
+                seen_slugs.append(s)
+        slugs = seen_slugs
+
         if not slugs:
             # Fallback: try common slug patterns
             kw = date.today().isocalendar()[1]
@@ -491,81 +491,3 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
 
             except Exception as e:
                 logger.warning(f"Lidl flyer '{slug}' failed: {e}")
-
-
-async def _scrape_lidl_offers_page(
-    products: list[dict], max_items: int, region: str
-) -> None:
-    """Scrape Lidl product offers page via Playwright."""
-    from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
-
-    existing_names = {p["name"].lower() for p in products}
-
-    crawler = PlaywrightCrawler(
-        max_requests_per_crawl=1,
-        headless=True,
-        request_handler_timeout=timedelta(seconds=60),
-    )
-
-    @crawler.router.default_handler
-    async def lidl_handler(context: PlaywrightCrawlingContext) -> None:
-        context.log.info(f"Scraping Lidl offers: {context.request.url}")
-        await context.page.wait_for_timeout(3000)
-
-        # Scroll to load more products
-        for _ in range(3):
-            await context.page.evaluate("window.scrollBy(0, 1000)")
-            await context.page.wait_for_timeout(1000)
-
-        items = await context.page.evaluate("""() => {
-            const results = [];
-            const tiles = document.querySelectorAll('.product-grid-box');
-            tiles.forEach(tile => {
-                const name = tile.querySelector(
-                    '.product-grid-box__title'
-                )?.textContent?.trim() || '';
-
-                const price = tile.querySelector(
-                    '.ods-price__value'
-                )?.textContent?.trim() || '';
-
-                const oldPrice = tile.querySelector(
-                    '.ods-price__stroke-price s'
-                )?.textContent?.trim() || '';
-
-                const discount = tile.querySelector(
-                    '.ods-price__box-content-text-el'
-                )?.textContent?.trim() || '';
-
-                const img = tile.querySelector(
-                    '.odsc-image-gallery__image'
-                )?.src || '';
-
-                if (name && name.length > 2) {
-                    results.push({name, price, oldPrice, discount, img});
-                }
-            });
-            return results;
-        }""")
-
-        context.log.info(f"Found {len(items)} Lidl products on offers page")
-
-        for item in items:
-            name = item["name"]
-            if name.lower() in existing_names:
-                continue
-            existing_names.add(name.lower())
-
-            products.append(
-                {
-                    "retailer": "lidl",
-                    "name": name,
-                    "price": _parse_price(item.get("price", "")),
-                    "discount_pct": _parse_discount(item.get("discount", "")),
-                    "image_url": item.get("img") or None,
-                    "category": "offer",
-                    "region": region,
-                }
-            )
-
-    await crawler.run(["https://www.lidl.ch/h/de-CH/unsere-highlights/h10007395"])
