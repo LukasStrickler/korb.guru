@@ -145,7 +145,6 @@ async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[di
             max_requests_per_crawl=1,
             headless=True,
             request_handler_timeout=60,
-            max_requests_per_minute=10,
         )
 
         @crawler.router.default_handler
@@ -226,7 +225,6 @@ async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict
             max_requests_per_crawl=1,
             headless=True,
             request_handler_timeout=60,
-            max_requests_per_minute=10,
         )
 
         @crawler.router.default_handler
@@ -297,7 +295,6 @@ async def scrape_denner(max_items: int = 200, region: str = "zurich") -> list[di
         crawler = BeautifulSoupCrawler(
             max_requests_per_crawl=1,
             request_handler_timeout=30,
-            max_requests_per_minute=10,
         )
 
         @crawler.router.default_handler
@@ -385,7 +382,6 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
             max_requests_per_crawl=1,
             headless=True,
             request_handler_timeout=60,
-            max_requests_per_minute=10,
         )
 
         @crawler.router.default_handler
