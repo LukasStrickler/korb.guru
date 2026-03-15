@@ -3,6 +3,6 @@
 /* tslint:disable */
  
 export enum SwipeActionEnum {
-  ACCEPT = "accept",
-  REJECT = "reject",
+    ACCEPT = 'accept',
+    REJECT = 'reject',
 }

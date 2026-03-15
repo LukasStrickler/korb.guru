@@ -2,11 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { GoogleMapsPlace } from "./GoogleMapsPlace";
+import type { GoogleMapsPlace } from './GoogleMapsPlace';
 /**
  * Request body for bulk store ingestion from Google Maps.
  */
 export type StoreIngestRequest = {
-  places: Array<GoogleMapsPlace>;
-  region?: string;
+    places: Array<GoogleMapsPlace>;
+    region?: string;
 };
+

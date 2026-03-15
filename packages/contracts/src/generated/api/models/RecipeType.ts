@@ -3,7 +3,7 @@
 /* tslint:disable */
  
 export enum RecipeType {
-  PROTEIN = "protein",
-  VEGGIE = "veggie",
-  CARB = "carb",
+    PROTEIN = 'protein',
+    VEGGIE = 'veggie',
+    CARB = 'carb',
 }

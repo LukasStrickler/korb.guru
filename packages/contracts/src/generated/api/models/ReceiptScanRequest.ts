@@ -2,9 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { ReceiptItem } from "./ReceiptItem";
+import type { ReceiptItem } from './ReceiptItem';
 export type ReceiptScanRequest = {
-  retailer: string;
-  items: Array<ReceiptItem>;
-  total: number;
+    retailer: string;
+    items: Array<ReceiptItem>;
+    total: number;
 };
+

@@ -2,7 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { VoteChoice } from "./VoteChoice";
+import type { VoteChoice } from './VoteChoice';
 export type VoteRequest = {
-  vote: VoteChoice;
+    vote: VoteChoice;
 };
+

@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type HouseholdJoin = {
-  invite_code: string;
+    invite_code: string;
 };
+

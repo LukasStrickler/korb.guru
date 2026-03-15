@@ -3,9 +3,10 @@
 /* tslint:disable */
  
 export type BudgetEntryResponse = {
-  id: string;
-  amount: string;
-  description: string | null;
-  recorded_by: string;
-  created_at: string;
+    id: string;
+    amount: string;
+    description: (string | null);
+    recorded_by: string;
+    created_at: string;
 };
+

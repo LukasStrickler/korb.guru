@@ -2,10 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { MealSlot } from "./MealSlot";
+import type { MealSlot } from './MealSlot';
 export type MealPlanResponse = {
-  id: string;
-  recipe_id: string;
-  planned_date: string;
-  meal_slot: MealSlot;
+    id: string;
+    recipe_id: string;
+    planned_date: string;
+    meal_slot: MealSlot;
 };
+

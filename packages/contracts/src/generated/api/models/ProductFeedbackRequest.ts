@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type ProductFeedbackRequest = {
-  product_id: string;
-  helpful: boolean;
+    product_id: string;
+    helpful: boolean;
 };
+

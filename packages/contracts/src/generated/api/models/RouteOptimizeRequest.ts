@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type RouteOptimizeRequest = {
-  selected_shops: Array<string>;
-  time_limit?: number;
+    selected_shops: Array<string>;
+    time_limit?: number;
 };
+

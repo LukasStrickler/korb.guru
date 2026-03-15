@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type MessageCreate = {
-  text: string;
+    text: string;
 };
+

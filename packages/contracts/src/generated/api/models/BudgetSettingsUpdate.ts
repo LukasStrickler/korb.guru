@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type BudgetSettingsUpdate = {
-  weekly_limit?: number | string | null;
+    weekly_limit?: (number | string | null);
 };
+

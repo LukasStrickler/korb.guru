@@ -3,6 +3,6 @@
 /* tslint:disable */
  
 export enum VoteChoice {
-  YES = "yes",
-  NO = "no",
+    YES = 'yes',
+    NO = 'no',
 }

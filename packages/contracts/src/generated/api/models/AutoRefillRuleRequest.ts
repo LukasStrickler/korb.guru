@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type AutoRefillRuleRequest = {
-  ingredient_name: string;
-  threshold_days?: number;
+    ingredient_name: string;
+    threshold_days?: number;
 };
+

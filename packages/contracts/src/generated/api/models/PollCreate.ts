@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type PollCreate = {
-  recipe_id: string;
+    recipe_id: string;
 };
+

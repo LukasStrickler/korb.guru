@@ -3,7 +3,8 @@
 /* tslint:disable */
  
 export type HouseholdMemberResponse = {
-  id: string;
-  username: string;
-  avatar_url: string | null;
+    id: string;
+    username: string;
+    avatar_url: (string | null);
 };
+

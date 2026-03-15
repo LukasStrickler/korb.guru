@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type BulkCheckItem = {
-  item_id: string;
-  is_checked: boolean;
+    item_id: string;
+    is_checked: boolean;
 };
+

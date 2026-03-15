@@ -2,7 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { GroceryItemCreate } from "./GroceryItemCreate";
+import type { GroceryItemCreate } from './GroceryItemCreate';
 export type BulkItemCreateRequest = {
-  items: Array<GroceryItemCreate>;
+    items: Array<GroceryItemCreate>;
 };
+

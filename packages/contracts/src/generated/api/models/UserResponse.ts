@@ -3,11 +3,12 @@
 /* tslint:disable */
  
 export type UserResponse = {
-  id: string;
-  clerk_id: string;
-  email: string;
-  username: string;
-  avatar_url: string | null;
-  household_id: string | null;
-  health_streak_days: number;
+    id: string;
+    clerk_id: string;
+    email: string;
+    username: string;
+    avatar_url: (string | null);
+    household_id: (string | null);
+    health_streak_days: number;
 };
+

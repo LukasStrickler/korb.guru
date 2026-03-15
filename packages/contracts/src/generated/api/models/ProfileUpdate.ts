@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type ProfileUpdate = {
-  username?: string | null;
-  avatar_url?: string | null;
+    username?: (string | null);
+    avatar_url?: (string | null);
 };
+

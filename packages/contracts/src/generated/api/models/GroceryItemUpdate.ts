@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type GroceryItemUpdate = {
-  is_checked?: boolean | null;
+    is_checked?: (boolean | null);
 };
+

@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type GroceryListCreate = {
-  name: string;
+    name: string;
 };
+

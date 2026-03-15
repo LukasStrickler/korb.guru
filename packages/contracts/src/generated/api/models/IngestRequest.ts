@@ -2,11 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { ProductRecord } from "./ProductRecord";
+import type { ProductRecord } from './ProductRecord';
 export type IngestRequest = {
-  source?: string;
-  sink?: string;
-  recordCount?: number | null;
-  records?: Array<ProductRecord>;
-  region?: string;
+    source?: string;
+    sink?: string;
+    recordCount?: (number | null);
+    records?: Array<ProductRecord>;
+    region?: string;
 };
+

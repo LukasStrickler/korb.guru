@@ -3,9 +3,10 @@
 /* tslint:disable */
  
 export type RouteStop = {
-  name: string;
-  task: string;
-  distance: string;
-  latitude?: number | null;
-  longitude?: number | null;
+    name: string;
+    task: string;
+    distance: string;
+    latitude?: (number | null);
+    longitude?: (number | null);
 };
+

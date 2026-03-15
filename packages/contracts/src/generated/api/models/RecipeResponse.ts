@@ -2,14 +2,15 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { IngredientCreate } from "./IngredientCreate";
+import type { IngredientCreate } from './IngredientCreate';
 export type RecipeResponse = {
-  id: string;
-  title: string;
-  description: string | null;
-  cost: string;
-  time_minutes: number;
-  type: string;
-  image_url: string | null;
-  ingredients?: Array<IngredientCreate>;
+    id: string;
+    title: string;
+    description: (string | null);
+    cost: string;
+    time_minutes: number;
+    type: string;
+    image_url: (string | null);
+    ingredients?: Array<IngredientCreate>;
 };
+

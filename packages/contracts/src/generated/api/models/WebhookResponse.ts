@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type WebhookResponse = {
-  status: string;
-  message: string;
+    status: string;
+    message: string;
 };
+

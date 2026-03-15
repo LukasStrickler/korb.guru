@@ -3,7 +3,8 @@
 /* tslint:disable */
  
 export type GroceryItemCreate = {
-  ingredient_name: string;
-  quantity?: string | null;
-  category?: string;
+    ingredient_name: string;
+    quantity?: (string | null);
+    category?: string;
 };
+

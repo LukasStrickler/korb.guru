@@ -2,7 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { SwipeActionEnum } from "./SwipeActionEnum";
+import type { SwipeActionEnum } from './SwipeActionEnum';
 export type SwipeRequest = {
-  action: SwipeActionEnum;
+    action: SwipeActionEnum;
 };
+

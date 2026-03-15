@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type BudgetEntryCreate = {
-  amount: number | string;
-  description?: string | null;
+    amount: (number | string);
+    description?: (string | null);
 };
+

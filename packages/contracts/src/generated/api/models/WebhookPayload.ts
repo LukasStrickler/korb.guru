@@ -6,9 +6,10 @@
  * Payload sent by the swiss-grocery-scraper actor after a run.
  */
 export type WebhookPayload = {
-  event?: string;
-  totalItems?: number;
-  region?: string;
-  retailers?: Array<string>;
-  durationS?: number;
+    event?: string;
+    totalItems?: number;
+    region?: string;
+    retailers?: Array<string>;
+    durationS?: number;
 };
+

@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type AskRequest = {
-  question: string;
+    question: string;
 };
+

@@ -2,7 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { BulkCheckItem } from "./BulkCheckItem";
+import type { BulkCheckItem } from './BulkCheckItem';
 export type BulkCheckRequest = {
-  updates: Array<BulkCheckItem>;
+    updates: Array<BulkCheckItem>;
 };
+

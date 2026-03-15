@@ -3,7 +3,8 @@
 /* tslint:disable */
  
 export type IngredientCreate = {
-  name: string;
-  quantity?: string | null;
-  unit?: string | null;
+    name: string;
+    quantity?: (string | null);
+    unit?: (string | null);
 };
+

@@ -3,7 +3,8 @@
 /* tslint:disable */
  
 export type StoreIngestResponse = {
-  status: string;
-  upserted: number;
-  skipped: number;
+    status: string;
+    upserted: number;
+    skipped: number;
 };
+

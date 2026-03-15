@@ -2,10 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { GroceryItemResponse } from "./GroceryItemResponse";
+import type { GroceryItemResponse } from './GroceryItemResponse';
 export type GroceryListResponse = {
-  id: string;
-  name: string;
-  estimated_total: number;
-  items?: Array<GroceryItemResponse>;
+    id: string;
+    name: string;
+    estimated_total: number;
+    items?: Array<GroceryItemResponse>;
 };
+

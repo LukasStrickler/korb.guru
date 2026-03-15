@@ -2,9 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
  
-import type { RouteStop } from "./RouteStop";
+import type { RouteStop } from './RouteStop';
 export type RouteResponse = {
-  saved: number;
-  time: number;
-  stops: Array<RouteStop>;
+    saved: number;
+    time: number;
+    stops: Array<RouteStop>;
 };
+

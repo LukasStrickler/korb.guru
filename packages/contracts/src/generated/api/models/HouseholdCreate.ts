@@ -3,5 +3,6 @@
 /* tslint:disable */
  
 export type HouseholdCreate = {
-  name: string;
+    name: string;
 };
+

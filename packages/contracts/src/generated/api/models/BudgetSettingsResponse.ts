@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type BudgetSettingsResponse = {
-  weekly_limit: string;
-  total_savings: string;
+    weekly_limit: string;
+    total_savings: string;
 };
+

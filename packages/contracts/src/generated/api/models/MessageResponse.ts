@@ -3,10 +3,11 @@
 /* tslint:disable */
  
 export type MessageResponse = {
-  id: string;
-  user_id: string;
-  username?: string | null;
-  text: string;
-  message_type: string;
-  created_at: string;
+    id: string;
+    user_id: string;
+    username?: (string | null);
+    text: string;
+    message_type: string;
+    created_at: string;
 };
+

@@ -3,6 +3,7 @@
 /* tslint:disable */
  
 export type AskResponse = {
-  answer: string;
-  products: Array<Record<string, any>>;
+    answer: string;
+    products: Array<Record<string, any>>;
 };
+

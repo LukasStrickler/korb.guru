@@ -3,8 +3,9 @@
 /* tslint:disable */
  
 export type BatchSearchRequest = {
-  queries: Array<string>;
-  retailers?: Array<string> | null;
-  max_price?: number | null;
-  limit?: number;
+    queries: Array<string>;
+    retailers?: (Array<string> | null);
+    max_price?: (number | null);
+    limit?: number;
 };
+

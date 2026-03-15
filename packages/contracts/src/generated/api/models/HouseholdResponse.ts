@@ -3,7 +3,8 @@
 /* tslint:disable */
  
 export type HouseholdResponse = {
-  id: string;
-  name: string;
-  invite_code: string;
+    id: string;
+    name: string;
+    invite_code: string;
 };
+
