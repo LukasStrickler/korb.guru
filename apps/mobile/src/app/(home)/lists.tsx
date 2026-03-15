@@ -1,5 +1,6 @@
 import {
   ApiError,
+  bulkUpdateGroceryItems,
   getGroceryLists,
   type GroceryItem,
   type GroceryList,
@@ -87,21 +88,49 @@ export default function ListsScreen() {
     loadLists();
   }, [loadLists]);
 
-  const toggleItem = (listIndex: number, itemId: string) => {
+  const toggleItem = async (listIndex: number, itemId: string) => {
+    const list = lists[listIndex];
+    const item = list?.items.find((i) => i.id === itemId);
+    if (!item) return;
+
+    const newChecked = !item.is_checked;
+
+    // Optimistic update
     setLists((prev) =>
-      prev.map((list, li) =>
+      prev.map((l, li) =>
         li === listIndex
           ? {
-              ...list,
-              items: list.items.map((item) =>
-                item.id === itemId
-                  ? { ...item, is_checked: !item.is_checked }
-                  : item,
+              ...l,
+              items: l.items.map((i) =>
+                i.id === itemId ? { ...i, is_checked: newChecked } : i,
               ),
             }
-          : list,
+          : l,
       ),
     );
+
+    // Persist to backend
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await bulkUpdateGroceryItems(token, [
+        { item_id: itemId, is_checked: newChecked },
+      ]);
+    } catch {
+      // Revert on failure
+      setLists((prev) =>
+        prev.map((l, li) =>
+          li === listIndex
+            ? {
+                ...l,
+                items: l.items.map((i) =>
+                  i.id === itemId ? { ...i, is_checked: !newChecked } : i,
+                ),
+              }
+            : l,
+        ),
+      );
+    }
   };
 
   const groupByCategory = (items: GroceryItem[]) => {

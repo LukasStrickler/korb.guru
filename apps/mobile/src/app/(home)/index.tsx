@@ -1,11 +1,13 @@
 import {
   ApiError,
   askProductQuestion,
+  getRecommendedProducts,
   searchProducts,
+  submitProductFeedback,
   type ProductSearchResult,
 } from "@/lib/api";
 import { useAuth } from "@clerk/clerk-expo";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -18,7 +20,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const RETAILERS = ["All", "Migros", "Coop", "Aldi", "Denner", "Lidl"] as const;
 
-function ProductCard({ product }: { product: ProductSearchResult }) {
+function ProductCard({
+  product,
+  onFeedback,
+}: {
+  product: ProductSearchResult;
+  onFeedback?: (productId: string, helpful: boolean) => void;
+}) {
+  const [feedbackGiven, setFeedbackGiven] = useState<boolean | null>(null);
+
+  const handleFeedback = (helpful: boolean) => {
+    setFeedbackGiven(helpful);
+    onFeedback?.(product.id, helpful);
+  };
+
   return (
     <View className="rounded-xl border border-gray-200 bg-white p-4 gap-1">
       <View className="flex-row items-center justify-between">
@@ -37,11 +52,37 @@ function ProductCard({ product }: { product: ProductSearchResult }) {
         )}
       </View>
       <Text className="text-sm text-gray-500">{product.retailer}</Text>
-      {product.price != null && (
-        <Text className="text-lg font-bold text-gray-900">
-          CHF {product.price.toFixed(2)}
-        </Text>
-      )}
+      <View className="flex-row items-center justify-between">
+        {product.price != null && (
+          <Text className="text-lg font-bold text-gray-900">
+            CHF {product.price.toFixed(2)}
+          </Text>
+        )}
+        {onFeedback && (
+          <View className="flex-row gap-2">
+            <Pressable
+              onPress={() => handleFeedback(true)}
+              className={`rounded-lg px-3 py-1.5 ${feedbackGiven === true ? "bg-green-100" : "bg-gray-100"}`}
+            >
+              <Text
+                className={`text-sm ${feedbackGiven === true ? "text-green-700" : "text-gray-500"}`}
+              >
+                {feedbackGiven === true ? "Liked" : "Like"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleFeedback(false)}
+              className={`rounded-lg px-3 py-1.5 ${feedbackGiven === false ? "bg-red-100" : "bg-gray-100"}`}
+            >
+              <Text
+                className={`text-sm ${feedbackGiven === false ? "text-red-700" : "text-gray-500"}`}
+              >
+                {feedbackGiven === false ? "Disliked" : "Dislike"}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -57,6 +98,13 @@ export default function SearchScreen() {
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [recommendations, setRecommendations] = useState<ProductSearchResult[]>(
+    [],
+  );
+  const [recsStatus, setRecsStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+
   const [aiQuestion, setAiQuestion] = useState("");
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiProducts, setAiProducts] = useState<ProductSearchResult[]>([]);
@@ -64,6 +112,36 @@ export default function SearchScreen() {
     "idle",
   );
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const loadRecommendations = useCallback(async () => {
+    setRecsStatus("loading");
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const data = await getRecommendedProducts(token);
+      setRecommendations(data);
+      setRecsStatus("ok");
+    } catch {
+      setRecsStatus("error");
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    loadRecommendations();
+  }, [loadRecommendations]);
+
+  const onFeedback = useCallback(
+    async (productId: string, helpful: boolean) => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        await submitProductFeedback(token, productId, helpful);
+      } catch {
+        // feedback is best-effort
+      }
+    },
+    [getToken],
+  );
 
   const onSearch = useCallback(async () => {
     const trimmed = query.trim();
@@ -139,6 +217,30 @@ export default function SearchScreen() {
             Find products across Swiss retailers
           </Text>
 
+          {/* Recommendations */}
+          {recsStatus === "loading" && (
+            <View className="items-center py-4">
+              <ActivityIndicator size="small" color="#0a7ea4" />
+              <Text className="mt-2 text-sm text-gray-500">
+                Loading recommendations...
+              </Text>
+            </View>
+          )}
+          {recsStatus === "ok" && recommendations.length > 0 && (
+            <View className="gap-3">
+              <Text className="text-lg font-semibold text-gray-900">
+                For You
+              </Text>
+              {recommendations.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onFeedback={onFeedback}
+                />
+              ))}
+            </View>
+          )}
+
           {/* Search bar */}
           <View className="flex-row gap-2">
             <TextInput
@@ -208,7 +310,11 @@ export default function SearchScreen() {
                 {results.length} result{results.length !== 1 ? "s" : ""}
               </Text>
               {results.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onFeedback={onFeedback}
+                />
               ))}
             </View>
           )}
@@ -251,7 +357,11 @@ export default function SearchScreen() {
                 {aiProducts.length > 0 && (
                   <View className="gap-2 mt-2">
                     {aiProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onFeedback={onFeedback}
+                      />
                     ))}
                   </View>
                 )}

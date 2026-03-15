@@ -236,3 +236,28 @@ export const swipeRecipe = (
 
 export const getGroceryLists = (token: string) =>
   apiFetchWithAuth<GroceryList[]>("/api/v1/grocery/lists", token);
+
+export const getRecommendedProducts = (token: string, limit = 10) =>
+  apiFetchWithAuth<ProductSearchResult[]>(
+    `/api/v1/products/recommended?limit=${limit}`,
+    token,
+  );
+
+export const submitProductFeedback = (
+  token: string,
+  productId: string,
+  helpful: boolean,
+) =>
+  apiFetchWithAuth<{ status: string }>("/api/v1/products/feedback", token, {
+    method: "POST",
+    body: { product_id: productId, helpful },
+  });
+
+export const bulkUpdateGroceryItems = (
+  token: string,
+  updates: { item_id: string; is_checked: boolean }[],
+) =>
+  apiFetchWithAuth<{ updated: number }>("/api/v1/grocery/items/bulk", token, {
+    method: "PATCH",
+    body: { updates },
+  });
