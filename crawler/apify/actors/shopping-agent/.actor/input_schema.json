@@ -1,0 +1,64 @@
+{
+  "title": "Shopping Agent Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "query": {
+      "title": "Shopping Query",
+      "type": "string",
+      "description": "Natural language shopping query (e.g., 'Zutaten für Pasta Carbonara unter CHF 15')"
+    },
+    "budget": {
+      "title": "Budget (CHF)",
+      "type": "number",
+      "description": "Maximum budget in CHF",
+      "default": 50.0
+    },
+    "preferred_retailers": {
+      "title": "Preferred Retailers",
+      "type": "array",
+      "description": "Preferred retailers to search",
+      "items": {
+        "type": "string",
+        "enum": ["aldi", "migros", "coop", "denner", "lidl"]
+      },
+      "default": ["migros", "coop", "aldi", "denner", "lidl"]
+    },
+    "region": {
+      "title": "Region",
+      "type": "string",
+      "enum": ["zurich", "bern", "basel"],
+      "default": "zurich"
+    },
+    "qdrant_url": {
+      "title": "Qdrant URL",
+      "type": "string",
+      "description": "Qdrant Cloud cluster URL"
+    },
+    "qdrant_api_key": {
+      "title": "Qdrant API Key",
+      "type": "string",
+      "description": "Qdrant Cloud API key",
+      "isSecret": true
+    },
+    "openrouter_api_key": {
+      "title": "OpenRouter API Key",
+      "type": "string",
+      "description": "OpenRouter API key for LLM access",
+      "isSecret": true
+    },
+    "scrape_fresh": {
+      "title": "Scrape Fresh Data",
+      "type": "boolean",
+      "description": "Run the swiss-grocery-scraper actor for fresh data before searching",
+      "default": false
+    },
+    "find_stores": {
+      "title": "Find Nearby Stores",
+      "type": "boolean",
+      "description": "Use Google Maps Scraper to find nearby stores for recommended retailers in the user's region",
+      "default": false
+    }
+  },
+  "required": ["query"]
+}

@@ -1,0 +1,18 @@
+[project]
+name = "korb-guru-crawler-smartcart"
+version = "0.1.0"
+description = "Custom Swiss grocery crawler with Docling PDF extraction"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28,<0.29",
+    "beautifulsoup4>=4.12,<5",
+    "playwright>=1.49,<2",
+    "pydantic>=2.10,<3",
+    "qdrant-client[fastembed]>=1.17,<2",
+    "docling>=2.70,<3",
+    "pdfplumber>=0.11,<1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
