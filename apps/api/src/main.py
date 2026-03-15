@@ -40,6 +40,7 @@ from .routes import (  # noqa: E402
     recipes_router,
     route_router,
     status_router,
+    stores_router,
 )
 
 configure_logging()
@@ -105,6 +106,7 @@ app.include_router(messages_router)
 app.include_router(polls_router)
 app.include_router(notifications_router)
 app.include_router(route_router)
+app.include_router(stores_router)
 app.include_router(receipts_router)
 
 

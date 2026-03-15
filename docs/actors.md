@@ -1,9 +1,6 @@
-# Apify Actors -- korb.guru
+# Apify Actors — korb.guru
 
-korb.guru uses Apify Actors as the backbone of its grocery data pipeline. Each Actor
-follows the UNIX philosophy: **do one thing and do it well**. A single-purpose scraper
-collects raw product data; a separate AI agent reasons over it. Pre-built platform
-Actors fill the gaps (maps, recipes, LLM inference) so we never reinvent the wheel.
+korb.guru uses Apify Actors for grocery data scraping and store discovery.
 
 ---
 
@@ -14,38 +11,30 @@ Actors fill the gaps (maps, recipes, LLM inference) so we never reinvent the whe
   +---------------------------------------------------------+
   |                                                         |
   |  +-------------------------+    +--------------------+  |
-  |  | swiss-grocery-scraper   |    | shopping-agent     |  |
-  |  | (custom Actor)          |    | (custom Actor)     |  |
-  |  |                         |    |                    |  |
-  |  | Aldi -----> Docling OCR |    | Orchestrator:      |  |
-  |  | Migros ---> Issuu + PW  |    |  cache check (KV)  |  |
-  |  | Coop -----> Playwright  |    |  -> scrape -> search|  |
-  |  | Denner ---> BS4 + Issuu |    |  -> LLM reason     |  |
-  |  | Lidl -----> PW + Docling|    |  -> Google Maps    |  |
-  |  |                         |    |  -> recommend      |  |
+  |  | swiss-grocery-scraper   |    | compass/           |  |
+  |  | (custom Actor v0.4)     |    | crawler-google-    |  |
+  |  |                         |    | places             |  |
+  |  | Aldi -----> PDF + OCR   |    | (platform Actor)   |  |
+  |  | Migros ---> Playwright  |    |                    |  |
+  |  | Coop -----> ePaper API  |    | Discovers stores   |  |
+  |  | Denner ---> BS4 HTML    |    | for all 5 brands   |  |
+  |  | Lidl -----> API + PDF   |    |                    |  |
   |  +-----------|-------------+    +----|---------------+  |
   |              |                       |                  |
   |              v                       v                  |
-  |        Dataset JSON           Actor key-value store     |
-  |              |                  (query cache + results) |
-  |  +-----------|-----+---------+       |                  |
-  |  | Platform Actors |         |       |                  |
-  |  | Google Maps  <--|---------|-------+                  |
-  |  | Content Crawler |         |       (find_stores)      |
-  |  | OpenRouter LLM  |         |                          |
-  |  +-----------|-----+---------+                          |
+  |        Dataset JSON            Dataset JSON             |
   +-----------|--------------------------|-----------------+
-              |  Webhook POST            |
+              |  POST /ingest            |  POST /api/v1/stores/ingest
               v                          v
-  +---------------------------+   +-------------+
-  | FastAPI  /ingest          |   | Qdrant      |
-  | (accepts product records) |   | (vectors)   |
-  +-----------|---------------+   +------^------+
-              |                          |
-              v                          |
-  +---------------------------+          |
-  | PostgreSQL                |----------+
-  | (products, prices, users) |  embed + upsert
+  +---------------------------+   +---------------------------+
+  | FastAPI Backend           |   | PostgreSQL                |
+  | (apps/api)                |-->| products + stores tables  |
+  +-----------|---------------+   +-------------|-------------+
+              |                                 |
+              v                                 |
+  +---------------------------+                 |
+  | Qdrant (vector search)    |<----------------+
+  | products collection       |   embed + upsert
   +---------------------------+
 ```
 
@@ -53,90 +42,69 @@ Actors fill the gaps (maps, recipes, LLM inference) so we never reinvent the whe
 
 ## 1. `korb-guru/swiss-grocery-scraper` (Custom)
 
-**Status:** Deployed and running on Apify Cloud.
+**Status:** Deployed on Apify Cloud (build 0.4.21).
 **Source:** `crawler/apify/actors/swiss-grocery-scraper/`
+**Last verified:** 374 items from 5/5 retailers in 222s.
 
-A single Actor that scrapes weekly offers from all five major Swiss grocery
-retailers. It combines three extraction strategies under one roof:
-
-| Strategy               | Library                        | Used by            |
-| ---------------------- | ------------------------------ | ------------------ |
-| PDF prospekt OCR       | Docling `DocumentConverter`    | Aldi, Lidl         |
-| Issuu page-image OCR   | httpx + Docling OCR            | Migros, Denner     |
-| HTML scraping (JS)     | Crawlee `PlaywrightCrawler`    | Migros, Coop, Lidl |
-| HTML scraping (static) | Crawlee `BeautifulSoupCrawler` | Denner             |
+A single Actor that scrapes weekly offers from five Swiss grocery retailers.
+Scrapers run **sequentially** (not parallel) to avoid Crawlee shared request
+queue conflicts.
 
 ### Per-Retailer Breakdown
 
-**Aldi** -- PDF download + Docling OCR
+| Retailer | Method                        | Data Source                | Price Coverage | Items (typical) |
+| -------- | ----------------------------- | -------------------------- | -------------- | --------------- |
+| Aldi     | PDF + Docling OCR             | Scene7 CDN (`KW{nn}` URL)  | 100%           | ~30             |
+| Migros   | Playwright (headless browser) | migros.ch/de/offers/home   | 100%           | ~50             |
+| Coop     | ePaper JSON API + pdfplumber  | epaper.coopzeitung.ch API  | 100%           | ~60             |
+| Denner   | BeautifulSoup HTML            | denner.ch aktionen page    | 100%           | ~30             |
+| Lidl     | Leaflets API + PDF enrichment | endpoints.leaflets.schwarz | ~50%           | ~200            |
 
-- Constructs a deterministic URL using the current calendar week (`KW{nn}`)
-  pointing to Aldi's Scene7 CDN.
-- Downloads the full weekly prospekt PDF in one HTTP call.
-- Hands raw PDF bytes to Docling, which converts each page to markdown.
-- A regex parser walks the markdown to extract `(name, price)` tuples.
+**Aldi** — Constructs deterministic PDF URL from current calendar week
+(`s7g10.scene7.com/is/content/aldi/AW_KW{kw}_...`). Downloads PDF, runs
+Docling OCR to extract product names and prices.
 
-**Migros** -- Issuu Wochenflyer + Playwright HTML
+**Migros** — Launches headless Chromium via Crawlee Playwright. Scrolls the
+offers page to trigger lazy loading, then extracts product cards via JS
+`querySelectorAll` on Angular components.
 
-- Two-phase scrape. Phase 1 downloads page images from Migros's Issuu
-  publication (`m-magazin/migros-wochenflyer-{KW}-{YEAR}-d-aa`) and runs
-  Docling OCR on each JPEG. Phase 2 launches a headless Chromium instance via
-  Crawlee Playwright to scrape `migros.ch/de/aktionen.html`, extracting
-  product cards with JS `document.querySelectorAll`.
-- Results are merged and deduplicated by product name.
+**Coop** — Uses the public ePaper JSON API (no browser needed):
 
-**Coop** -- Playwright HTML
+1. `findEditionsFromDate` — discovers latest Coopzeitung edition (defId=1130)
+2. `getPages` — fetches page metadata, filters by `pmDepartment="anzeigen"`
+3. Downloads HIGHRES PDFs from pre-signed S3 URLs
+4. Extracts products via pdfplumber (skip_ocr=True for single-page PDFs)
 
-- Single-phase Crawlee Playwright crawl against `coop.ch/de/aktionen.html`.
-- Evaluates a JS snippet in-page that queries product card DOM nodes and
-  returns name, price, image URL, and discount badge text.
+**Denner** — Static HTML scraping via BeautifulSoup. Parses `.product-item`
+cards, extracts prices from "X statt Y" format.
 
-**Denner** -- BeautifulSoup HTML + Issuu Wochenprospekt
+**Lidl** — Hybrid approach:
 
-- Phase 1 uses Crawlee BeautifulSoup (no browser needed) to parse the static
-  HTML at `denner.ch/de/aktionen-und-sortiment/aktuelle-aktionen`.
-- Phase 2 downloads the Issuu publication (`denner-ch/{YEAR}-{KW}-de`) page
-  images and runs Docling OCR, same as Migros.
-- Deduplicates Issuu results against the HTML set.
+1. Scrapes flyer page for slug patterns (regex)
+2. Calls Leaflets API (`endpoints.leaflets.schwarz/v4/flyer`) for product names
+3. Downloads PDF for price enrichment (best-effort ~50% match rate)
 
-**Lidl** -- Playwright PDF discovery + Docling OCR
+### Known Limitations
 
-- Launches Playwright against Lidl's PDF prospekt listing page.
-- Extracts all `<a href="*.pdf">` links via JS evaluation.
-- Downloads up to 3 PDFs via httpx, then feeds each to Docling for product
-  extraction.
+- **Aldi**: Falls back across 3 URL variants; returns empty if all fail
+- **Migros**: Only 3 scroll iterations — may miss products below fold
+- **Coop**: Limited to 30 pages per run; department filter may miss some offers
+- **Denner**: Single-page results only (no pagination)
+- **Lidl**: Price matching by name is lossy; no discount extraction
 
 ### Input Schema
 
 ```json
 {
-  "retailers": {
-    "type": "array",
-    "items": { "enum": ["aldi", "migros", "coop", "denner", "lidl"] },
-    "default": ["aldi", "migros", "coop", "denner", "lidl"]
-  },
-  "region": {
-    "type": "string",
-    "enum": ["zurich", "bern", "basel"],
-    "default": "zurich"
-  },
-  "maxItems": {
-    "type": "integer",
-    "default": 200
-  },
-  "webhookUrl": {
-    "type": "string",
-    "description": "URL to POST notification to after scraping completes"
-  },
-  "webhookApiKey": {
-    "type": "string",
-    "isSecret": true,
-    "description": "API key for webhook Authorization header"
-  }
+  "retailers": ["aldi", "migros", "coop", "denner", "lidl"],
+  "region": "zurich",
+  "maxItems": 200,
+  "webhookUrl": "https://api.korb.guru/ingest",
+  "webhookApiKey": "secret"
 }
 ```
 
-### Output Schema (per record pushed to dataset)
+### Output Schema (per record)
 
 ```json
 {
@@ -146,254 +114,184 @@ retailers. It combines three extraction strategies under one roof:
   "discount_pct": 20.0,
   "image_url": "https://...",
   "category": "offer",
-  "valid_to": "2026-03-22"
+  "region": "zurich"
 }
 ```
 
 ### Runtime
 
 - **Base image:** `apify/actor-python:3.12`
-- **Package manager:** `uv` (pinned at `0.6.12`, copied from the official
-  `ghcr.io/astral-sh/uv` image for deterministic builds)
-- **Key dependencies:** `crawlee[playwright,beautifulsoup]>=1.5`, `docling>=2.70`,
-  `httpx==0.28.*`
-- **Browser:** Chromium installed at build time via `playwright install`
-- **Concurrency:** Parallel retailer processing via `asyncio.gather()`; within
-  each retailer, Issuu pages are fetched sequentially with a 1.5 s rate-limit
-  delay.
+- **Package manager:** `uv` (pinned)
+- **Key deps:** `crawlee[playwright,beautifulsoup]>=1.5`, `docling>=2.70`,
+  `pdfplumber>=0.11`, `httpx==0.28.*`
+- **Execution:** Sequential per retailer (avoids shared request queue conflicts)
 
 ---
 
-## 2. `korb-guru/shopping-agent` (Custom)
+## 2. Google Maps Store Discovery
 
-**Status:** Built, ready for deployment.
-**Source:** `crawler/apify/actors/shopping-agent/`
+**Actor:** `compass/crawler-google-places` (platform Actor)
+**Orchestrator:** `crawler/apify/google_maps.py`
+**Cost:** ~$4/1,000 places ($0.02/run for Zürich)
 
-An AI agent Actor that chains the scraper output into personalized
-shopping recommendations via a multi-step orchestration pipeline. It uses
-Apify's Key-Value Store for query-level caching and can optionally call the
-`apify/google-maps-scraper` platform Actor to find nearby stores.
+Discovers physical store locations for all five retailers via Google Maps.
+Returns name, address, coordinates, phone, website, rating, and opening hours.
 
-### Agent Flow
+### Usage
 
-```
-  User query: "Guenstige Bio-Milch diese Woche"
-         |
-         v
-  +-------------------------------+
-  | 0. Check KV store cache       |
-  |    (Actor.get_value by query  |
-  |     hash) -- return early if  |
-  |     cached result exists      |
-  +-------------------------------+
-         |  cache miss
-         v
-  +-------------------------------+
-  | 1. Optional: trigger swiss-   |
-  |    grocery-scraper to refresh |
-  |    product data (scrape_fresh)|
-  +-------------------------------+
-         |
-         v
-  +-------------------------------+
-  | 2. Qdrant hybrid search       |
-  |    - dense: MiniLM (384-dim)  |
-  |    - sparse: BM25 hashing     |
-  |    - filter: retailer, price, |
-  |      region                   |
-  +-------------------------------+
-         |
-         v
-  +-------------------------------+
-  | 3. LLM reasoning via          |
-  |    OpenRouter API              |
-  |    - model: configurable       |
-  |    - prompt: rank by value,   |
-  |      explain savings          |
-  +-------------------------------+
-         |
-         v
-  +-------------------------------+
-  | 4. Optional: Google Maps      |
-  |    store lookup (find_stores) |
-  |    - calls apify/google-maps- |
-  |      scraper for each retailer|
-  |    - returns address, hours,  |
-  |      rating, coordinates      |
-  +-------------------------------+
-         |
-         v
-  +-------------------------------+
-  | 5. Cache result in KV store   |
-  |    + return structured JSON   |
-  |    recommendations + nearby   |
-  |    store info                 |
-  +-------------------------------+
+```bash
+# Discover all brands in Zürich
+python -m crawler.apify.google_maps
+
+# Single brand
+python -m crawler.apify.google_maps --brand=migros
+
+# Dry run (fetch but don't ingest)
+python -m crawler.apify.google_maps --dry-run
+
+# Custom location + ingest to remote API
+python -m crawler.apify.google_maps --location="Bern, Schweiz" \
+  --ingest-url=https://api.korb.guru --api-key=secret
 ```
 
-**Chaining mechanism:** When `scrape_fresh` is true, the agent calls the scraper
-Actor via the Apify client (`ApifyClientAsync`), waits for completion, then
-queries Qdrant with the user's query and passes matching products as context to
-the LLM via OpenRouter. When `find_stores` is true, it additionally calls the
-`apify/google-maps-scraper` platform Actor to find nearby stores for the
-retailers present in the results.
+### Data Flow
 
-**Caching:** Before any work, the agent computes a SHA-256 hash from the query,
-budget, retailers, and region, and checks the Actor's default Key-Value Store
-(`Actor.get_value()`). On a cache hit the stored result is returned immediately.
-On a cache miss the full pipeline runs and the result is written back via
-`Actor.set_value()`.
+1. Runs Google Maps actor with brand-specific search queries
+2. Transforms results to match `POST /api/v1/stores/ingest` schema
+3. API upserts to PostgreSQL `stores` table (dedup by `google_place_id`)
 
-### Input Schema
+### Store Model Fields
 
-```json
-{
-  "query": {
-    "type": "string",
-    "description": "Shopping query in any language"
-  },
-  "budget": { "type": "number", "description": "Max budget in CHF" },
-  "preferred_retailers": {
-    "type": "array",
-    "items": { "enum": ["aldi", "migros", "coop", "denner", "lidl"] }
-  },
-  "region": {
-    "type": "string",
-    "enum": ["zurich", "bern", "basel"],
-    "default": "zurich"
-  },
-  "qdrant_url": { "type": "string" },
-  "qdrant_api_key": { "type": "string", "isSecret": true },
-  "openrouter_api_key": { "type": "string", "isSecret": true },
-  "scrape_fresh": { "type": "boolean", "default": false },
-  "find_stores": { "type": "boolean", "default": false }
-}
-```
-
-### Runtime
-
-- **Base image:** `apify/actor-python:3.12`
-- **Package manager:** `uv`
-- **Key dependencies:** `apify`, `apify-client`, `qdrant-client[fastembed]`, `httpx`
+| Field              | Source                            |
+| ------------------ | --------------------------------- |
+| name               | Google Maps `title`               |
+| brand              | Auto-detected from title          |
+| latitude/longitude | Google Maps `location.lat/lng`    |
+| address            | Google Maps `address`             |
+| google_place_id    | Unique dedup key                  |
+| phone              | Google Maps `phone`               |
+| website            | Google Maps `website`             |
+| rating             | Google Maps `totalScore`          |
+| opening_hours      | Google Maps `openingHours` (JSON) |
 
 ---
 
-## 3. Platform Actors (Pre-Built)
+## 3. Data Ingestion Pipeline
 
-### Google Maps Scraper (`apify/google-maps-scraper`)
+### Products: Scraper → PostgreSQL + Qdrant
 
-- **Purpose:** Fetch store locations (lat/lng, address, opening hours) for all
-  five retailers in the user's region.
-- **Use case:** Route optimization -- find the nearest stores that carry the
-  user's desired products, minimize travel distance.
-- **Integration:** Called directly by the shopping-agent when `find_stores` is
-  true. The agent searches for each recommended retailer near the user's region,
-  returning up to 3 locations per retailer with address, rating, coordinates,
-  and opening hours. Results are also stored in PostgreSQL `stores` table and
-  exposed via the `/stores` API endpoint.
+Two ingestion paths exist:
 
-### Website Content Crawler
-
-- **Purpose:** Import recipe content from arbitrary URLs.
-- **Use case:** A user pastes a recipe link; the crawler extracts ingredients,
-  which are then matched against current offers via Qdrant search.
-- **Integration:** Crawled HTML is cleaned and passed to the LLM for structured
-  ingredient extraction.
-
-### OpenRouter Proxy Actor
-
-- **Purpose:** LLM inference without managing API keys per model.
-- **Use case:** The shopping agent and recipe parser use this for all LLM calls.
-  During the hackathon, free credits eliminate cost concerns.
-- **Models used:** `google/gemini-2.5-flash` via OpenRouter for
-  fast structured extraction and reasoning.
-
----
-
-## Webhook Integration
-
-The scraper supports two webhook mechanisms:
-
-### In-Actor Webhook (Primary)
-
-When `webhookUrl` is provided in the Actor input, the scraper sends a POST
-notification directly after scraping completes. This is handled in the Actor
-code itself via `httpx`:
+**Path A: API endpoint (recommended)**
 
 ```
-POST <webhookUrl>
-Content-Type: application/json
-Authorization: Bearer <webhookApiKey>
-
-{
-  "event": "scrape_completed",
-  "total_items": 847,
-  "region": "zurich",
-  "retailers": ["aldi", "migros", "coop", "denner", "lidl"],
-  "duration_s": 142.3
-}
+Apify Actor → POST /ingest (FastAPI)
+  → Background task: embed with MiniLM
+  → Postgres upsert (ON CONFLICT by MD5(retailer:name))
+  → Qdrant upsert (dense + sparse vectors)
 ```
 
-### Apify Platform Webhook (Alternative)
+**Path B: Orchestrator CLI (legacy)**
 
-Apify's built-in webhook system can also fire on Actor run completion,
-sending a POST request to the backend `/ingest` endpoint.
+```
+python -m crawler.apify.orchestrator --ingest
+  → Apify Client → fetch dataset
+  → Normalize → embed → Qdrant upsert (bypasses Postgres!)
+```
 
-### Backend Processing
+Path A is preferred — it writes to both Postgres and Qdrant atomically.
+Path B only writes to Qdrant (data inconsistency risk).
 
-The FastAPI `/ingest` endpoint (at `apps/api/src/routes/ingest.py`) validates
-the payload via the `IngestRequest` Pydantic model, authenticates with
-`require_ingest_auth`, and responds with HTTP 202 Accepted.
+### Stores: Google Maps → PostgreSQL
 
-From there, an async background task embeds each product name using
-MiniLM and upserts the vectors into Qdrant, while also writing
-the structured records to PostgreSQL.
+```
+python -m crawler.apify.google_maps
+  → Google Maps actor → fetch places
+  → POST /api/v1/stores/ingest
+  → Postgres upsert (ON CONFLICT by google_place_id)
+```
+
+### How to Fill Qdrant with Real Data
+
+1. **Start infrastructure:**
+
+   ```bash
+   docker compose up -d postgres qdrant
+   ```
+
+2. **Run migrations:**
+
+   ```bash
+   cd apps/api && uv run alembic upgrade head
+   ```
+
+3. **Start the API:**
+
+   ```bash
+   cd apps/api && uv run uvicorn src.main:app --reload
+   ```
+
+4. **Run the scraper on Apify and ingest:**
+
+   ```bash
+   # Option A: Use orchestrator (fetches from Apify, POSTs to local API)
+   python -m crawler.apify.orchestrator --ingest
+
+   # Option B: Manual — run actor on Apify, then fetch + POST
+   curl -X POST https://api.apify.com/v2/acts/korb-guru~swiss-grocery-scraper/run-sync-get-dataset-items \
+     -H "Authorization: Bearer $APIFY_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"retailers":["aldi","migros","coop","denner","lidl"],"region":"zurich","maxItems":200}' \
+     -o products.json
+
+   # Then POST to local API
+   curl -X POST http://localhost:8000/ingest \
+     -H "Content-Type: application/json" \
+     -d '{"source":"apify","records":'$(cat products.json)'}'
+   ```
+
+5. **Discover stores:**
+   ```bash
+   python -m crawler.apify.google_maps --ingest-url=http://localhost:8000
+   ```
 
 ---
 
 ## Scheduling
 
-Apify Schedules automate the entire pipeline on a weekly cadence:
+| Schedule         | Cron        | Actor                          | Notes              |
+| ---------------- | ----------- | ------------------------------ | ------------------ |
+| Weekly scrape    | `0 6 * * 1` | swiss-grocery-scraper          | Monday 06:00 UTC   |
+| Mid-week refresh | `0 6 * * 4` | swiss-grocery-scraper          | Thursday 06:00 UTC |
+| Store locations  | `0 0 1 * *` | Google Maps (via orchestrator) | Monthly            |
 
-| Schedule         | Cron        | Actor                   | Notes                                |
-| ---------------- | ----------- | ----------------------- | ------------------------------------ |
-| Weekly scrape    | `0 6 * * 1` | `swiss-grocery-scraper` | Monday 06:00 UTC, all 5 retailers    |
-| Mid-week refresh | `0 6 * * 4` | `swiss-grocery-scraper` | Thursday 06:00 UTC, catch new flyers |
-| Store locations  | `0 0 1 * *` | Google Maps Scraper     | Monthly, store data is stable        |
+---
 
-The weekly scrape input is:
+## Environment Variables
 
-```json
-{
-  "retailers": ["aldi", "migros", "coop", "denner", "lidl"],
-  "region": "zurich",
-  "maxItems": 200
-}
-```
+| Variable             | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `APIFY_TOKEN`        | Apify API authentication                 |
+| `INGEST_API_KEY`     | Auth for POST /ingest and /stores/ingest |
+| `DATABASE_URL`       | PostgreSQL connection string             |
+| `QDRANT_MODE`        | docker / cloud / local / memory          |
+| `EMBEDDING_PROVIDER` | local (MiniLM) or openai                 |
 
 ---
 
 ## Design Principles
 
-1. **Single responsibility.** The scraper only scrapes. It does not embed, does
-   not query Qdrant, does not call LLMs. Data flows forward through webhooks.
+1. **Single responsibility.** Scraper only scrapes. Embedding and storage
+   happen in the backend.
 
-2. **Deterministic URLs.** Aldi, Migros, and Denner flyer URLs are constructed
-   from the calendar week number, making scraping predictable and debuggable
-   without fragile link discovery.
+2. **Sequential execution.** Retailer scrapers run one at a time to avoid
+   Crawlee's shared request queue conflicts.
 
-3. **Graceful degradation.** Each retailer scraper catches its own exceptions.
-   If Lidl's PDF page is down, the other four retailers still produce data.
-   The Actor always completes; partial data is better than no data.
+3. **Graceful degradation.** Each retailer catches its own exceptions.
+   Partial data is better than no data.
 
-4. **Deduplication at source.** Every scraper maintains a `seen` set keyed on
-   `name.lower()` to prevent duplicate records before they ever reach the
-   dataset or the backend.
+4. **Deduplication at source.** Every scraper deduplicates by `name.lower()`.
+   Backend deduplicates by `MD5(retailer:name)` UUID.
 
-5. **Rate limiting.** Issuu page downloads are throttled at 1.5 s per page.
-   Crawlee crawlers are capped at 10 requests/minute. We respect the sites
-   we scrape.
-
-6. **Reproducible builds.** The Dockerfile pins `uv` to a specific release
-   tag and uses `--no-cache` to ensure clean installs. The `apify/actor-python`
-   base image provides a known-good Python 3.12 environment.
+5. **Idempotent upserts.** Both products (MD5 UUID) and stores
+   (google_place_id) use ON CONFLICT DO UPDATE for safe re-runs.

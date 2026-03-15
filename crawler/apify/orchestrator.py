@@ -1,32 +1,38 @@
 """
 Apify Crawler Orchestrator
 
-Runs the custom swiss-grocery-scraper Actor for all 5 Swiss retailers:
-Aldi, Migros, Coop, Denner, Lidl.
+Runs the custom swiss-grocery-scraper Actor and ingests results
+via the FastAPI /ingest endpoint (Postgres + Qdrant).
 
 Usage:
     python -m crawler.apify.orchestrator
     python -m crawler.apify.orchestrator --chain=aldi
     python -m crawler.apify.orchestrator --ingest
+    python -m crawler.apify.orchestrator --ingest --ingest-url=https://api.korb.guru
 """
+
 import argparse
 import logging
+import os
 import time
 
+import httpx
 from apify_client import ApifyClient
 
 from crawler.apify.config import (
-    APIFY_TOKEN,
     ALL_RETAILERS,
+    APIFY_TOKEN,
     CUSTOM_ACTOR_ID,
     CUSTOM_ACTOR_INPUT,
-    MAX_RETRIES,
     ACTOR_TIMEOUT_SECS,
+    MAX_RETRIES,
 )
-from crawler.apify.ingest.pipeline import ingest_items
 from crawler.apify.ingest.transform import normalize_items
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
 logger = logging.getLogger("apify-orchestrator")
 
 
@@ -39,7 +45,12 @@ def run_actor_with_retry(
     """Run an Apify Actor with retry logic."""
     for attempt in range(1, retries + 1):
         try:
-            logger.info(f"Running Actor '{actor_id}' (attempt {attempt}/{retries})...")
+            logger.info(
+                "Running Actor '%s' (attempt %d/%d)...",
+                actor_id,
+                attempt,
+                retries,
+            )
             start = time.time()
 
             run = client.actor(actor_id).call(
@@ -48,27 +59,92 @@ def run_actor_with_retry(
             )
             items = client.dataset(run["defaultDatasetId"]).list_items().items
             elapsed = round(time.time() - start, 1)
-            logger.info(f"  Got {len(items)} items in {elapsed}s")
+            logger.info("  Got %d items in %ss", len(items), elapsed)
             return items
 
         except Exception as e:
-            logger.warning(f"  Attempt {attempt} failed: {e}")
+            logger.warning("  Attempt %d failed: %s", attempt, e)
             if attempt < retries:
                 wait = 5 * attempt
-                logger.info(f"  Retrying in {wait}s...")
+                logger.info("  Retrying in %ds...", wait)
                 time.sleep(wait)
             else:
-                logger.error(f"  All {retries} attempts failed for '{actor_id}'")
                 raise RuntimeError(
                     f"Actor '{actor_id}' failed after {retries} attempts"
                 ) from e
+    return []
+
+
+def ingest_via_api(
+    items: list[dict],
+    base_url: str = "http://localhost:8000",
+    api_key: str | None = None,
+    region: str = "zurich",
+) -> dict:
+    """POST normalized products to the /ingest API endpoint.
+
+    This writes to both PostgreSQL AND Qdrant (via the backend).
+    """
+    records = []
+    for item in items:
+        records.append({
+            "retailer": item.get("retailer", ""),
+            "name": item.get("name", ""),
+            "description": item.get("description"),
+            "price": item.get("price"),
+            "originalPrice": item.get("original_price"),
+            "discountPct": item.get("discount_pct"),
+            "category": item.get("category"),
+            "imageUrl": item.get("image_url"),
+            "region": region,
+        })
+
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    payload = {
+        "source": "apify",
+        "region": region,
+        "records": records,
+    }
+
+    with httpx.Client(timeout=60.0) as http:
+        resp = http.post(f"{base_url}/ingest", headers=headers, json=payload)
+        resp.raise_for_status()
+        result = resp.json()
+        logger.info("Ingestion response: %s", result)
+        return result
 
 
 def main():
     parser = argparse.ArgumentParser(description="Apify Crawler Orchestrator")
-    parser.add_argument("--chain", type=str, help=f"Run single chain only ({'/'.join(ALL_RETAILERS)})")
-    parser.add_argument("--ingest", action="store_true", help="Ingest results to Qdrant")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would be run without executing")
+    parser.add_argument(
+        "--chain",
+        type=str,
+        help=f"Run single chain only ({'/'.join(ALL_RETAILERS)})",
+    )
+    parser.add_argument(
+        "--ingest",
+        action="store_true",
+        help="Ingest results via /ingest API (Postgres + Qdrant)",
+    )
+    parser.add_argument(
+        "--ingest-url",
+        type=str,
+        default="http://localhost:8000",
+        help="Backend API base URL (default: http://localhost:8000)",
+    )
+    parser.add_argument(
+        "--api-key",
+        type=str,
+        help="Ingest API key (or set INGEST_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print what would be run without executing",
+    )
     args = parser.parse_args()
 
     if not APIFY_TOKEN:
@@ -84,7 +160,9 @@ def main():
     # Determine which retailers to scrape
     if args.chain:
         if args.chain not in ALL_RETAILERS:
-            logger.error(f"Unknown chain '{args.chain}'. Available: {ALL_RETAILERS}")
+            logger.error(
+                "Unknown chain '%s'. Available: %s", args.chain, ALL_RETAILERS
+            )
             return
         retailers = [args.chain]
     else:
@@ -106,9 +184,10 @@ def main():
     print(f"\nTotal items collected: {len(normalized)}")
 
     if args.ingest and normalized:
-        print(f"\nIngesting {len(normalized)} items to Qdrant...")
-        ingest_items(normalized)
-        print("Ingestion complete.")
+        api_key = args.api_key or os.getenv("INGEST_API_KEY")
+        print(f"\nIngesting {len(normalized)} items via {args.ingest_url}/ingest...")
+        result = ingest_via_api(normalized, args.ingest_url, api_key)
+        print(f"Ingestion complete: {result}")
     elif not normalized:
         print("\nNo items to ingest.")
 

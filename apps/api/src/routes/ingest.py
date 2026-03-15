@@ -1,10 +1,14 @@
-"""Ingest endpoint — accepts scraped product records, upserts to Postgres + Qdrant."""
+"""Ingest endpoint — accepts scraped product records, upserts to Postgres + Qdrant.
+
+Also handles Apify webhook notifications to auto-fetch and ingest scraper results.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
 import logging
+import os
 import uuid
 from datetime import date
 from decimal import Decimal
@@ -207,4 +211,127 @@ async def ingest_records(
         status="accepted",
         accepted=len(payload.records),
         source=payload.source,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Apify Webhook Handler
+# ---------------------------------------------------------------------------
+
+
+class WebhookPayload(BaseModel):
+    """Payload sent by the swiss-grocery-scraper actor after a run."""
+
+    event: str = "scrape_completed"
+    total_items: int = Field(0, alias="totalItems")
+    region: str = "zurich"
+    retailers: list[str] = Field(default_factory=list)
+    duration_s: float = Field(0, alias="durationS")
+
+    model_config = {"populate_by_name": True}
+
+
+class WebhookResponse(BaseModel):
+    status: str
+    message: str
+
+
+async def _fetch_and_ingest_from_apify(region: str, retailers: list[str]) -> None:
+    """Background task: fetch latest Apify dataset and ingest via _process_records."""
+    apify_token = os.getenv("APIFY_TOKEN")
+    if not apify_token:
+        logger.error("APIFY_TOKEN not set — cannot fetch from Apify")
+        return
+
+    try:
+        from apify_client import ApifyClient
+
+        client = ApifyClient(apify_token)
+        actor_id = "korb-guru/swiss-grocery-scraper"
+
+        # Get the latest run for this actor
+        runs = client.actor(actor_id).runs().list(limit=1, desc=True)
+        if not runs.items:
+            logger.warning("No runs found for actor %s", actor_id)
+            return
+
+        latest_run = runs.items[0]
+        dataset_id = latest_run.get("defaultDatasetId")
+        if not dataset_id:
+            logger.warning("No dataset ID in latest run")
+            return
+
+        items = client.dataset(dataset_id).list_items().items
+        logger.info("Fetched %d items from Apify dataset %s", len(items), dataset_id)
+
+        if not items:
+            return
+
+        # Convert raw Apify items to ProductRecord format
+        records = []
+        for item in items:
+            name = item.get("name", "").strip()
+            retailer = item.get("retailer", "").strip()
+            if not name or not retailer:
+                continue
+
+            price = item.get("price")
+            if isinstance(price, str):
+                try:
+                    price = Decimal(price.replace("CHF", "").replace(",", ".").strip())
+                except Exception:
+                    price = None
+
+            records.append(
+                ProductRecord(
+                    retailer=retailer,
+                    name=name,
+                    price=price,
+                    discount_pct=item.get("discount_pct"),
+                    category=item.get("category"),
+                    image_url=item.get("image_url"),
+                    region=item.get("region", region),
+                )
+            )
+
+        logger.info("Processing %d records from webhook", len(records))
+        await _process_records(records, "apify-webhook", region)
+
+    except Exception:
+        logger.exception("Failed to fetch and ingest from Apify")
+
+
+@router.post(
+    "/webhook/apify",
+    response_model=WebhookResponse,
+    status_code=202,
+)
+async def apify_webhook(
+    payload: WebhookPayload,
+    background_tasks: BackgroundTasks,
+    _auth: Annotated[None, Depends(require_ingest_auth)] = None,
+) -> WebhookResponse:
+    """Handle Apify actor completion webhook.
+
+    When the swiss-grocery-scraper finishes, it POSTs here.
+    We then fetch the latest dataset from Apify and ingest it.
+    """
+    logger.info(
+        "Apify webhook received: event=%s, items=%d, region=%s, retailers=%s",
+        payload.event,
+        payload.total_items,
+        payload.region,
+        payload.retailers,
+    )
+
+    if payload.total_items > 0:
+        background_tasks.add_task(
+            _fetch_and_ingest_from_apify,
+            payload.region,
+            payload.retailers,
+        )
+
+    return WebhookResponse(
+        status="accepted",
+        message=f"Will ingest {payload.total_items} items from Apify",
     )

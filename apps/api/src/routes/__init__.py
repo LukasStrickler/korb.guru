@@ -16,6 +16,7 @@ from .receipts import router as receipts_router
 from .recipes import router as recipes_router
 from .route import router as route_router
 from .status import router as status_router
+from .stores import router as stores_router
 from .users import router as users_router
 
 __all__ = [
@@ -36,5 +37,6 @@ __all__ = [
     "recipes_router",
     "route_router",
     "status_router",
+    "stores_router",
     "users_router",
 ]
