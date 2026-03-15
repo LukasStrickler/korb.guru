@@ -26,19 +26,20 @@ Frontend is developed and deployed separately.
 
 Set these in Coolify's environment configuration:
 
-| Variable             | Required | Description                                          |
-| -------------------- | -------- | ---------------------------------------------------- |
-| `POSTGRES_USER`      | Yes      | PostgreSQL username                                  |
-| `POSTGRES_PASSWORD`  | Yes      | Strong password for PostgreSQL                       |
-| `POSTGRES_DB`        | Yes      | Database name (default: `korb_guru`)                 |
-| `DATABASE_URL`       | Yes      | Full connection string (must match PG credentials)   |
-| `CLERK_SECRET_KEY`   | Yes      | Clerk secret key for authentication                  |
-| `APIFY_TOKEN`        | Yes      | Apify API token for crawlers + LLM proxy             |
-| `OPENROUTER_API_KEY` | No       | Fallback OpenRouter key (if Apify proxy unavailable) |
-| `QDRANT_MODE`        | No       | `docker` (default) for compose setup                 |
-| `QDRANT_HOST`        | No       | `qdrant` (default, matches compose service name)     |
-| `CORS_ORIGINS`       | Yes      | Comma-separated list of allowed frontend origins     |
-| `LOG_LEVEL`          | No       | `INFO` (default), `DEBUG`, `WARNING`                 |
+| Variable                  | Required | Description                                          |
+| ------------------------- | -------- | ---------------------------------------------------- |
+| `POSTGRES_USER`           | Yes      | PostgreSQL username                                  |
+| `POSTGRES_PASSWORD`       | Yes      | Strong password for PostgreSQL                       |
+| `POSTGRES_DB`             | Yes      | Database name (default: `korb_guru`)                 |
+| `DATABASE_URL`            | Yes      | Full connection string (must match PG credentials)   |
+| `CLERK_SECRET_KEY`        | Yes      | Clerk secret key for authentication                  |
+| `APIFY_TOKEN`             | Yes      | Apify API token for crawlers + LLM proxy             |
+| `OPENROUTER_API_KEY`      | No       | Fallback OpenRouter key (if Apify proxy unavailable) |
+| `QDRANT_MODE`             | No       | `docker` (default) for compose setup                 |
+| `QDRANT_HOST`             | No       | `qdrant` (default, matches compose service name)     |
+| `CLERK_JWT_ISSUER_DOMAIN` | Yes      | Clerk JWT issuer domain for token verification       |
+| `CORS_ORIGINS`            | Yes      | Comma-separated list of allowed frontend origins     |
+| `LOG_LEVEL`               | No       | `INFO` (default), `DEBUG`, `WARNING`                 |
 
 For Qdrant Cloud (instead of local):
 
@@ -204,8 +205,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install uv && uv pip install --system --no-cache ./apps/api
-      - run: cd apps/api && python -m pytest
+      - run: pip install uv && cd apps/api && uv sync
+      - run: cd apps/api && uv run python -m pytest
 
   deploy:
     needs: test

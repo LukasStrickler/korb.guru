@@ -353,9 +353,10 @@ def _extract_blocks(file_path: str, retailer: str) -> list[dict]:
                         if "/" in txt and re.search(r"\d", txt):
                             continue
 
-                        # Skip metadata words
+                        # Skip metadata words (whole-word matching to avoid false positives)
                         txt_lower = txt.lower()
-                        if any(s in txt_lower for s in _BLOCK_SKIP_WORDS):
+                        txt_words = set(re.findall(r"\w+", txt_lower))
+                        if txt_words & _BLOCK_SKIP_WORDS:
                             continue
 
                         # Skip page headers
@@ -421,7 +422,10 @@ def _extract_blocks(file_path: str, retailer: str) -> list[dict]:
                     )):
                         continue
 
-                    sale_price = min(prices) if prices else None
+                    if not prices:
+                        continue
+
+                    sale_price = min(prices)
                     orig_price = (
                         max(prices) if len(prices) > 1 else None
                     )
@@ -501,7 +505,7 @@ def extract_products_from_file(
     # Aldi/Lidl: use article-number-anchored block extraction (grid layout)
     if retailer in ("aldi", "lidl"):
         block_products = _extract_blocks(file_path, retailer)
-        if block_products:
+        if len(block_products) >= 3:
             logger.info(
                 f"Block extractor ({retailer}): {len(block_products)} products "
                 f"from {Path(file_path).name}"

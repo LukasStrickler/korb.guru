@@ -99,7 +99,7 @@ cards, extracts prices from "X statt Y" format.
   "retailers": ["aldi", "migros", "coop", "denner", "lidl"],
   "region": "zurich",
   "maxItems": 200,
-  "webhookUrl": "https://api.korb.guru/ingest",
+  "webhookUrl": "https://api.korb.guru/webhook/apify",
   "webhookApiKey": "secret"
 }
 ```
@@ -191,16 +191,15 @@ Apify Actor → POST /ingest (FastAPI)
   → Qdrant upsert (dense + sparse vectors)
 ```
 
-**Path B: Orchestrator CLI (legacy)**
+**Path B: Orchestrator CLI**
 
 ```
 python -m crawler.apify.orchestrator --ingest
   → Apify Client → fetch dataset
-  → Normalize → embed → Qdrant upsert (bypasses Postgres!)
+  → Normalize → POST /ingest (same as Path A)
 ```
 
-Path A is preferred — it writes to both Postgres and Qdrant atomically.
-Path B only writes to Qdrant (data inconsistency risk).
+Both paths write to Postgres and Qdrant via the /ingest API endpoint.
 
 ### Stores: Google Maps → PostgreSQL
 
@@ -245,14 +244,14 @@ python -m crawler.apify.google_maps
      -o products.json
 
    # Then POST to local API
-   curl -X POST http://localhost:8000/ingest \
+   curl -X POST http://localhost:8001/ingest \
      -H "Content-Type: application/json" \
      -d '{"source":"apify","records":'$(cat products.json)'}'
    ```
 
 5. **Discover stores:**
    ```bash
-   python -m crawler.apify.google_maps --ingest-url=http://localhost:8000
+   python -m crawler.apify.google_maps --ingest-url=http://localhost:8001
    ```
 
 ---

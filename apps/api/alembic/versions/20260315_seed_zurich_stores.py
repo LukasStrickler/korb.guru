@@ -201,7 +201,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Only delete the specific seeded stores, not user-added ones
-    names = [s["name"] for s in ZURICH_STORES]
-    placeholders = ", ".join(f"'{n}'" for n in names)
-    op.execute(f"DELETE FROM stores WHERE name IN ({placeholders})")
+    # Only delete the exact seeded stores by matching on name, brand, and address
+    conn = op.get_bind()
+    for store in ZURICH_STORES:
+        conn.execute(
+            sa.text(
+                "DELETE FROM stores WHERE name = :name "
+                "AND brand = :brand AND address = :address"
+            ),
+            {
+                "name": store["name"],
+                "brand": store["brand"],
+                "address": store["address"],
+            },
+        )

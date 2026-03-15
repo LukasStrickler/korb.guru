@@ -14,14 +14,14 @@ from ..models.meal_plan import MealPlan
 from ..models.recipe import Recipe, RecipeIngredient
 
 
-def _parse_quantity(qty: str | None) -> tuple[float, str]:
+def _parse_quantity(qty: str | None) -> tuple[float | None, str]:
     if not qty:
         return (0.0, "")
     match = re.match(r"^([\d.]+)\s*(.*)$", qty.strip())
     if match:
         return (float(match.group(1)), match.group(2).strip())
     # Non-numeric quantity (e.g. "a pinch", "to taste") — preserve as unit
-    return (1.0, qty.strip())
+    return (None, qty.strip())
 
 
 def _format_quantity(amount: float, unit: str) -> str:
@@ -73,7 +73,7 @@ async def generate_grocery_list(
         ings_by_recipe[ing.recipe_id].append(ing)
 
     accumulated: dict[
-        str, tuple[float, str, str]
+        str, tuple[float | None, str, str]
     ] = {}  # agg_key -> (amount, unit, original_name)
     total = Decimal("0")
     for recipe_id, count in recipe_counts.items():
@@ -90,13 +90,22 @@ async def generate_grocery_list(
             agg_key = f"{key}||{agg_unit}"
             if agg_key in accumulated:
                 existing_amount, existing_unit, _ = accumulated[agg_key]
+                # If either amount is None, keep it None (non-numeric quantity)
+                if existing_amount is not None and amount is not None:
+                    new_amount = existing_amount + amount * count
+                else:
+                    new_amount = None
                 accumulated[agg_key] = (
-                    existing_amount + amount * count,
+                    new_amount,
                     existing_unit,
                     ing.name,
                 )
             else:
-                accumulated[agg_key] = (amount * count, unit, ing.name)
+                accumulated[agg_key] = (
+                    amount * count if amount is not None else None,
+                    unit,
+                    ing.name,
+                )
 
     grocery_list = GroceryList(
         household_id=household_id,
@@ -109,7 +118,12 @@ async def generate_grocery_list(
     await session.flush()
 
     for _agg_key, (amount, unit, original_name) in accumulated.items():
-        qty_str = _format_quantity(amount, unit) if amount > 0 else None
+        if amount is None:
+            qty_str = unit if unit else None
+        elif amount > 0:
+            qty_str = _format_quantity(amount, unit)
+        else:
+            qty_str = None
         item = GroceryItem(
             grocery_list_id=grocery_list.id,
             ingredient_name=original_name,

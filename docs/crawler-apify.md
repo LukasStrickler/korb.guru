@@ -110,7 +110,7 @@ python -m crawler.apify.google_maps --brand=migros
 python -m crawler.apify.google_maps --dry-run
 
 # Custom API endpoint
-python -m crawler.apify.google_maps --ingest-url=http://localhost:8000
+python -m crawler.apify.google_maps --ingest-url=http://localhost:8001
 ```
 
 Stores are ingested via `POST /api/v1/stores/ingest` and deduplicated by Google Place ID. Brands detected: Migros, Coop, Aldi Suisse, Lidl, Denner.

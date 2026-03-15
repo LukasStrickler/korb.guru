@@ -56,7 +56,7 @@
     "packages/config/**/*.{js,ts,tsx}": [
       "eslint --fix"
     ],
-    "packages/contracts/src/*.{js,ts,tsx}": [
+    "packages/contracts/src/!(generated)/**/*.{js,ts,tsx}": [
       "eslint --fix"
     ],
     "apps/convex/**/*.{js,ts}": [

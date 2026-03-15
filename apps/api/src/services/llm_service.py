@@ -9,6 +9,7 @@ import logging
 import re
 
 import httpx
+from fastapi import HTTPException
 
 from ..config import get_settings
 
@@ -95,11 +96,15 @@ async def _chat_completion(
             logger.error("OpenRouter request error: %s", exc)
 
     if not settings.apify_token and not settings.openrouter_api_key:
-        raise RuntimeError(
-            "No LLM provider configured (APIFY_TOKEN / OPENROUTER_API_KEY)"
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM provider configured (APIFY_TOKEN / OPENROUTER_API_KEY)",
         )
 
-    raise RuntimeError("All LLM providers failed")
+    raise HTTPException(
+        status_code=503,
+        detail="All LLM providers are temporarily unavailable",
+    )
 
 
 async def ask_llm(

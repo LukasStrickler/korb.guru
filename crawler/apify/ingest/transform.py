@@ -39,6 +39,7 @@ _CATEGORY_HEADERS = frozenset({
     "damen", "herren", "kinder", "baby", "sport", "garten",
     "qualität", "licht", "schweizer", "leistung", "farbe",
     "sortiment", "aktion", "angebot", "highlight",
+    "woche", "favorit", "klassiker", "neuheit", "tipp", "top", "hit",
 })
 
 
@@ -76,8 +77,8 @@ def _is_junk_name(name: str) -> bool:
         return True
     if name.lower().strip() in _CATEGORY_HEADERS:
         return True
-    # Single or double all-caps words are category headers
-    if name.isupper() and len(name.split()) <= 3:
+    # Short all-caps words are likely category headers (but not valid product names)
+    if name.isupper() and len(name.split()) <= 3 and len(name) < 20:
         return True
     # Fewer than 3 alphabetic characters
     if sum(1 for c in name if c.isalpha()) < 3:
@@ -120,7 +121,7 @@ def _is_junk_name(name: str) -> bool:
         return True
     # Names containing "Wert:" or similar metadata/fragments
     lower = name.lower()
-    if any(w in lower for w in ("wert:", "normalpreis", "statt", "erwartet.", "preis")):
+    if re.search(r"\b(?:wert:|normalpreis|statt|erwartet\.|preis)\b", lower):
         if len(name) < 20:  # Short fragments containing these words
             return True
     # Date patterns like "26.2.bis18." or "Nur von Do., 26.2."

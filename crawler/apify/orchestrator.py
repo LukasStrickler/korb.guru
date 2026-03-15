@@ -77,7 +77,7 @@ def run_actor_with_retry(
 
 def ingest_via_api(
     items: list[dict],
-    base_url: str = "http://localhost:8000",
+    base_url: str = "http://localhost:8001",
     api_key: str | None = None,
     region: str = "zurich",
 ) -> dict:
@@ -132,8 +132,8 @@ def main():
     parser.add_argument(
         "--ingest-url",
         type=str,
-        default="http://localhost:8000",
-        help="Backend API base URL (default: http://localhost:8000)",
+        default="http://localhost:8001",
+        help="Backend API base URL (default: http://localhost:8001)",
     )
     parser.add_argument(
         "--api-key",

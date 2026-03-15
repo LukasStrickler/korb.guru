@@ -504,11 +504,14 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
                                     break
                         if price is None:
                             # Word overlap: match if ≥2 significant words match
+                            # Only use when exactly one PDF entry matches
+                            # to avoid attaching wrong prices
                             title_words = {
                                 w for w in title.lower().split()
                                 if len(w) > 2
                             }
                             if len(title_words) >= 2:
+                                candidates = []
                                 for pdf_name, pdf_price in pdf_prices.items():
                                     pdf_words = {
                                         w for w in pdf_name.split()
@@ -516,8 +519,9 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
                                     }
                                     overlap = title_words & pdf_words
                                     if len(overlap) >= 2:
-                                        price = pdf_price
-                                        break
+                                        candidates.append(pdf_price)
+                                if len(candidates) == 1:
+                                    price = candidates[0]
 
                         # Skip non-grocery items (beauty, electronics, etc.)
                         if _NON_GROCERY_KEYWORDS.search(title):

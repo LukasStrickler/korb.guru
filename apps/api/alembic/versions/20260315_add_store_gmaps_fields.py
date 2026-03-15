@@ -25,11 +25,9 @@ def upgrade() -> None:
     op.create_unique_constraint(
         "uq_stores_google_place_id", "stores", ["google_place_id"]
     )
-    op.create_index("ix_stores_google_place_id", "stores", ["google_place_id"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_stores_google_place_id", table_name="stores")
     op.drop_constraint("uq_stores_google_place_id", "stores", type_="unique")
     op.drop_index("ix_stores_brand", table_name="stores")
 

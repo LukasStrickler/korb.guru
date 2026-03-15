@@ -36,10 +36,13 @@ BRAND_MAP: dict[str, str] = {
 
 def _detect_brand(title: str, category: str | None) -> str | None:
     """Detect retailer brand from Google Maps place title or category."""
-    title_lower = title.lower()
-    for keyword, brand in BRAND_MAP.items():
-        if keyword in title_lower:
-            return brand
+    for text in (title, category):
+        if not text:
+            continue
+        text_lower = text.lower()
+        for keyword, brand in BRAND_MAP.items():
+            if keyword in text_lower:
+                return brand
     return None
 
 
@@ -116,6 +119,7 @@ async def ingest_stores(
             constraint="uq_stores_google_place_id",
             set_={
                 "name": stmt.excluded.name,
+                "brand": stmt.excluded.brand,
                 "address": stmt.excluded.address,
                 "latitude": stmt.excluded.latitude,
                 "longitude": stmt.excluded.longitude,

@@ -218,6 +218,12 @@ async def ingest_records(
 # ---------------------------------------------------------------------------
 
 
+class ApifyResource(BaseModel):
+    """Nested resource object from Apify webhook payload."""
+
+    default_dataset_id: str | None = Field(None, alias="defaultDatasetId")
+
+
 class WebhookPayload(BaseModel):
     """Payload sent by the swiss-grocery-scraper actor after a run."""
 
@@ -226,6 +232,7 @@ class WebhookPayload(BaseModel):
     region: str = "zurich"
     retailers: list[str] = Field(default_factory=list)
     duration_s: float = Field(0, alias="durationS")
+    resource: ApifyResource | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -235,8 +242,10 @@ class WebhookResponse(BaseModel):
     message: str
 
 
-async def _fetch_and_ingest_from_apify(region: str, retailers: list[str]) -> None:
-    """Background task: fetch latest Apify dataset and ingest via _process_records."""
+async def _fetch_and_ingest_from_apify(
+    region: str, retailers: list[str], dataset_id: str | None = None
+) -> None:
+    """Background task: fetch Apify dataset and ingest via _process_records."""
     apify_token = os.getenv("APIFY_TOKEN")
     if not apify_token:
         logger.error("APIFY_TOKEN not set — cannot fetch from Apify")
@@ -246,19 +255,20 @@ async def _fetch_and_ingest_from_apify(region: str, retailers: list[str]) -> Non
         from apify_client import ApifyClient
 
         client = ApifyClient(apify_token)
-        actor_id = "korb-guru/swiss-grocery-scraper"
 
-        # Get the latest run for this actor
-        runs = client.actor(actor_id).runs().list(limit=1, desc=True)
-        if not runs.items:
-            logger.warning("No runs found for actor %s", actor_id)
-            return
-
-        latest_run = runs.items[0]
-        dataset_id = latest_run.get("defaultDatasetId")
         if not dataset_id:
-            logger.warning("No dataset ID in latest run")
-            return
+            # Fallback: fetch the latest run's dataset (legacy behavior)
+            actor_id = "korb-guru/swiss-grocery-scraper"
+            runs = client.actor(actor_id).runs().list(limit=1, desc=True)
+            if not runs.items:
+                logger.warning("No runs found for actor %s", actor_id)
+                return
+
+            latest_run = runs.items[0]
+            dataset_id = latest_run.get("defaultDatasetId")
+            if not dataset_id:
+                logger.warning("No dataset ID in latest run")
+                return
 
         items = client.dataset(dataset_id).list_items().items
         logger.info("Fetched %d items from Apify dataset %s", len(items), dataset_id)
@@ -324,10 +334,12 @@ async def apify_webhook(
     )
 
     if payload.total_items > 0:
+        dataset_id = payload.resource.default_dataset_id if payload.resource else None
         background_tasks.add_task(
             _fetch_and_ingest_from_apify,
             payload.region,
             payload.retailers,
+            dataset_id,
         )
 
     return WebhookResponse(
