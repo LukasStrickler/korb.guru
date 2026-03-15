@@ -6,7 +6,7 @@ Issuu publications are downloaded as page images and processed via Docling OCR.
 import asyncio
 import logging
 import re
-from datetime import date
+from datetime import date, timedelta
 
 import httpx
 
@@ -144,7 +144,7 @@ async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[di
         crawler = PlaywrightCrawler(
             max_requests_per_crawl=1,
             headless=True,
-            request_handler_timeout=60,
+            request_handler_timeout=timedelta(seconds=60),
         )
 
         @crawler.router.default_handler
@@ -224,7 +224,7 @@ async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict
         crawler = PlaywrightCrawler(
             max_requests_per_crawl=1,
             headless=True,
-            request_handler_timeout=60,
+            request_handler_timeout=timedelta(seconds=60),
         )
 
         @crawler.router.default_handler
@@ -294,7 +294,7 @@ async def scrape_denner(max_items: int = 200, region: str = "zurich") -> list[di
 
         crawler = BeautifulSoupCrawler(
             max_requests_per_crawl=1,
-            request_handler_timeout=30,
+            request_handler_timeout=timedelta(seconds=30),
         )
 
         @crawler.router.default_handler
@@ -381,7 +381,7 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
         crawler = PlaywrightCrawler(
             max_requests_per_crawl=1,
             headless=True,
-            request_handler_timeout=60,
+            request_handler_timeout=timedelta(seconds=60),
         )
 
         @crawler.router.default_handler
