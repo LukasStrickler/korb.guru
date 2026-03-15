@@ -26,18 +26,19 @@ Frontend is developed and deployed separately.
 
 Set these in Coolify's environment configuration:
 
-| Variable            | Required | Description                                                                  |
-| ------------------- | -------- | ---------------------------------------------------------------------------- |
-| `POSTGRES_USER`     | Yes      | PostgreSQL username                                                          |
-| `POSTGRES_PASSWORD` | Yes      | Strong password for PostgreSQL                                               |
-| `POSTGRES_DB`       | Yes      | Database name (default: `korb_guru`)                                         |
-| `DATABASE_URL`      | Yes      | Full connection string (must match PG credentials)                           |
-| `JWT_SECRET_KEY`    | Yes      | Generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
-| `APIFY_TOKEN`       | Yes      | Your Apify API token for crawlers + LLM categorization                       |
-| `QDRANT_MODE`       | No       | `docker` (default) for compose setup                                         |
-| `QDRANT_HOST`       | No       | `qdrant` (default, matches compose service name)                             |
-| `CORS_ORIGINS`      | Yes      | Comma-separated list of allowed frontend origins                             |
-| `LOG_LEVEL`         | No       | `INFO` (default), `DEBUG`, `WARNING`                                         |
+| Variable             | Required | Description                                          |
+| -------------------- | -------- | ---------------------------------------------------- |
+| `POSTGRES_USER`      | Yes      | PostgreSQL username                                  |
+| `POSTGRES_PASSWORD`  | Yes      | Strong password for PostgreSQL                       |
+| `POSTGRES_DB`        | Yes      | Database name (default: `korb_guru`)                 |
+| `DATABASE_URL`       | Yes      | Full connection string (must match PG credentials)   |
+| `CLERK_SECRET_KEY`   | Yes      | Clerk secret key for authentication                  |
+| `APIFY_TOKEN`        | Yes      | Apify API token for crawlers + LLM proxy             |
+| `OPENROUTER_API_KEY` | No       | Fallback OpenRouter key (if Apify proxy unavailable) |
+| `QDRANT_MODE`        | No       | `docker` (default) for compose setup                 |
+| `QDRANT_HOST`        | No       | `qdrant` (default, matches compose service name)     |
+| `CORS_ORIGINS`       | Yes      | Comma-separated list of allowed frontend origins     |
+| `LOG_LEVEL`          | No       | `INFO` (default), `DEBUG`, `WARNING`                 |
 
 For Qdrant Cloud (instead of local):
 
@@ -53,8 +54,8 @@ Create `docker-compose.prod.yml` for production:
 
 ```yaml
 services:
-  backend:
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+  api:
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
     volumes: [] # Remove dev volume mount
     restart: unless-stopped
 
@@ -180,7 +181,7 @@ grafana:
 scrape_configs:
   - job_name: korb-backend
     static_configs:
-      - targets: ["backend:8000"]
+      - targets: ["api:8000"]
 ```
 
 3. Import a FastAPI Grafana dashboard (ID: 16110).
@@ -204,7 +205,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install uv && uv pip install --system --no-cache ./apps/api
-      - run: cd backend && python -m pytest
+      - run: cd apps/api && python -m pytest
 
   deploy:
     needs: test
@@ -216,7 +217,7 @@ jobs:
 
 ### Database Backups
 
-Since the app uses greenfield `create_all()` (no migrations), backups are critical:
+Database backups are critical for data recovery:
 
 1. **Coolify built-in**: Enable automatic PostgreSQL backups in Coolify's database settings
 2. **Manual/cron**: Add a backup service:
@@ -250,7 +251,7 @@ Configure Coolify's health check to hit `/health` on port 8000.
 
 ## Security Checklist
 
-- [ ] Set a strong `JWT_SECRET_KEY` (never leave empty in production)
+- [ ] Set `CLERK_SECRET_KEY` for authentication
 - [ ] Set a strong `POSTGRES_PASSWORD`
 - [ ] Restrict `CORS_ORIGINS` to your actual frontend domain(s)
 - [ ] Keep `APIFY_TOKEN` secret

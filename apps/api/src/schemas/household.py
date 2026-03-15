@@ -14,7 +14,9 @@ class HouseholdJoin(BaseModel):
 
     @field_validator("invite_code", mode="before")
     @classmethod
-    def strip_invite_code(cls, v: str) -> str:
+    def strip_invite_code(cls, v: object) -> str:
+        if not isinstance(v, str):
+            return v  # type: ignore[return-value]
         return v.strip()
 
 

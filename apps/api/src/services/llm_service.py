@@ -95,10 +95,11 @@ async def _chat_completion(
             logger.error("OpenRouter request error: %s", exc)
 
     if not settings.apify_token and not settings.openrouter_api_key:
-        logger.warning("No LLM provider configured (APIFY_TOKEN / OPENROUTER_API_KEY)")
-        return "LLM is not configured. Set APIFY_TOKEN or OPENROUTER_API_KEY."
+        raise RuntimeError(
+            "No LLM provider configured (APIFY_TOKEN / OPENROUTER_API_KEY)"
+        )
 
-    return "Sorry, the LLM request failed. Please try again later."
+    raise RuntimeError("All LLM providers failed")
 
 
 async def ask_llm(

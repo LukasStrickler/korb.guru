@@ -97,7 +97,8 @@ async def main():
             logger.error("No valid retailers specified")
             await Actor.set_status_message("Error: no valid retailers")
             return
-        max_items = max(1, actor_input.get("maxItems", 200))
+        raw_max = actor_input.get("maxItems")
+        max_items = max(1, raw_max if isinstance(raw_max, int) else 200)
         region = actor_input.get("region", "zurich")
 
         logger.info(

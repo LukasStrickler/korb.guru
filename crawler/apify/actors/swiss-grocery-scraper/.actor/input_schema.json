@@ -8,7 +8,8 @@
       "type": "array",
       "description": "Which retailers to scrape (aldi, migros, coop, denner, lidl)",
       "items": {
-        "type": "string"
+        "type": "string",
+        "enum": ["aldi", "migros", "coop", "denner", "lidl"]
       },
       "default": ["aldi", "migros", "coop", "denner", "lidl"],
       "sectionCaption": "Scraping Options",

@@ -186,10 +186,9 @@ async def _process_records(
         )
         logger.info("Qdrant upsert complete for %d points", len(points))
     except Exception:
-        logger.warning(
+        logger.exception(
             "Qdrant upsert failed for %d points; Postgres data was committed",
             len(points),
-            exc_info=True,
         )
 
 

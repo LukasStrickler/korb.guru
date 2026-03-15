@@ -145,6 +145,69 @@
         }
       }
     },
+    "/webhook/apify": {
+      "post": {
+        "tags": ["ingest"],
+        "summary": "Apify Webhook",
+        "description": "Handle Apify actor completion webhook.\n\nWhen the swiss-grocery-scraper finishes, it POSTs here.\nWe then fetch the latest dataset from Apify and ingest it.",
+        "operationId": "apify_webhook_webhook_apify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Ingest-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ingest-Secret"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me": {
       "get": {
         "tags": ["users"],
@@ -2366,6 +2429,122 @@
         ]
       }
     },
+    "/api/v1/stores/ingest": {
+      "post": {
+        "tags": ["stores"],
+        "summary": "Ingest Stores",
+        "description": "Upsert stores from Google Maps actor data.\n\nUses google_place_id for deduplication. Only accepts places\nmatching known retailer brands.",
+        "operationId": "ingest_stores_api_v1_stores_ingest_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Ingest-Secret",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ingest-Secret"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreIngestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreIngestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stores": {
+      "get": {
+        "tags": ["stores"],
+        "summary": "List Stores",
+        "description": "List all stores, optionally filtered by brand.",
+        "operationId": "list_stores_api_v1_stores_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by brand",
+              "title": "Brand"
+            },
+            "description": "Filter by brand"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/receipts/scan": {
       "post": {
         "tags": ["receipts"],
@@ -2756,6 +2935,100 @@
         "required": ["id", "name", "created_at"],
         "title": "ExampleItem",
         "description": "One row from the example table."
+      },
+      "GoogleMapsPlace": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "title": "Lng"
+          },
+          "placeId": {
+            "type": "string",
+            "title": "Placeid"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
+          },
+          "totalScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalscore"
+          },
+          "categoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoryname"
+          },
+          "openingHours": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Openinghours"
+          }
+        },
+        "type": "object",
+        "required": ["title", "lat", "lng", "placeId"],
+        "title": "GoogleMapsPlace",
+        "description": "A place record from the Google Maps Apify actor."
       },
       "GroceryItemCreate": {
         "properties": {
@@ -3804,6 +4077,45 @@
         "required": ["name", "task", "distance"],
         "title": "RouteStop"
       },
+      "StoreIngestRequest": {
+        "properties": {
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/GoogleMapsPlace"
+            },
+            "type": "array",
+            "title": "Places"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": "zurich"
+          }
+        },
+        "type": "object",
+        "required": ["places"],
+        "title": "StoreIngestRequest",
+        "description": "Request body for bulk store ingestion from Google Maps."
+      },
+      "StoreIngestResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "upserted": {
+            "type": "integer",
+            "title": "Upserted"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": ["status", "upserted", "skipped"],
+        "title": "StoreIngestResponse"
+      },
       "SwipeActionEnum": {
         "type": "string",
         "enum": ["accept", "reject"],
@@ -3928,6 +4240,55 @@
         "type": "object",
         "required": ["vote"],
         "title": "VoteRequest"
+      },
+      "WebhookPayload": {
+        "properties": {
+          "event": {
+            "type": "string",
+            "title": "Event",
+            "default": "scrape_completed"
+          },
+          "totalItems": {
+            "type": "integer",
+            "title": "Totalitems",
+            "default": 0
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": "zurich"
+          },
+          "retailers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Retailers"
+          },
+          "durationS": {
+            "type": "number",
+            "title": "Durations",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "WebhookPayload",
+        "description": "Payload sent by the swiss-grocery-scraper actor after a run."
+      },
+      "WebhookResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": ["status", "message"],
+        "title": "WebhookResponse"
       },
       "WeeklySummaryResponse": {
         "properties": {

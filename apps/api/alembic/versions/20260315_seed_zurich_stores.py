@@ -191,15 +191,17 @@ def upgrade() -> None:
         sa.column("address", sa.String),
     )
     conn = op.get_bind()
-    count = conn.execute(sa.text("SELECT count(*) FROM stores")).scalar()
-    if count and count > 0:
-        return
-
-    op.bulk_insert(
-        stores_table,
-        [{"id": uuid.uuid4(), **s} for s in ZURICH_STORES],
-    )
+    for store in ZURICH_STORES:
+        exists = conn.execute(
+            sa.text("SELECT 1 FROM stores WHERE name = :name"),
+            {"name": store["name"]},
+        ).scalar()
+        if not exists:
+            conn.execute(stores_table.insert().values(id=uuid.uuid4(), **store))
 
 
 def downgrade() -> None:
-    op.execute("DELETE FROM stores")
+    # Only delete the specific seeded stores, not user-added ones
+    names = [s["name"] for s in ZURICH_STORES]
+    placeholders = ", ".join(f"'{n}'" for n in names)
+    op.execute(f"DELETE FROM stores WHERE name IN ({placeholders})")

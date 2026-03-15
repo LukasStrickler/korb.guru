@@ -36,7 +36,7 @@ _JUNK_PATTERNS = re.compile(
     r"|\d+\s*(?:g|kg|ml|l)\s*="  # "100 g ="
     r"|seite\s*\d"          # "Seite 1"
     r"|www\."               # URLs
-    r"|lidl|aldi|coop|migros|denner"  # retailer names
+    r"|(?:lidl|aldi|coop|migros|denner)\s*$"  # retailer name alone
     r"|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag"
     r"|aktion|angebot|rabatt|sparen|gratis|neu\s*$"
     r")",

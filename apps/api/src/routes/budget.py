@@ -51,7 +51,7 @@ async def _get_or_create_settings(
             )
             settings = result.scalars().first()
     if settings is None:
-        raise
+        raise RuntimeError("Failed to create or retrieve budget settings")
     return settings
 
 

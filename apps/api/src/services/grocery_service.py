@@ -20,8 +20,8 @@ def _parse_quantity(qty: str | None) -> tuple[float, str]:
     match = re.match(r"^([\d.]+)\s*(.*)$", qty.strip())
     if match:
         return (float(match.group(1)), match.group(2).strip())
-    # Preserve non-numeric quantities (e.g. "a pinch", "to taste")
-    return (0.0, qty.strip())
+    # Non-numeric quantity (e.g. "a pinch", "to taste") — preserve as unit
+    return (1.0, qty.strip())
 
 
 def _format_quantity(amount: float, unit: str) -> str:

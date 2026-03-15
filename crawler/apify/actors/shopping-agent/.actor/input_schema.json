@@ -21,7 +21,8 @@
       "type": "array",
       "description": "Preferred retailers (aldi, migros, coop, denner, lidl)",
       "items": {
-        "type": "string"
+        "type": "string",
+        "enum": ["aldi", "migros", "coop", "denner", "lidl"]
       },
       "default": ["migros", "coop", "aldi", "denner", "lidl"],
       "editor": "stringList"
