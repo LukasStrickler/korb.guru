@@ -1,12 +1,14 @@
 """
 Request handlers for each Swiss retailer.
 
-Scraping strategies (verified March 2026):
+Scraping strategies — PDF-first approach (verified March 2026):
+- Aldi:   PDF download from Scene7 CDN → Docling OCR
+- Lidl:   Leaflets API pdfUrl → Docling OCR (fallback: API product links)
+- Coop:   ePaper PDF download → Docling OCR (fallback: Playwright HTML)
 - Denner: BeautifulSoup on SSR HTML (.product-item selectors)
-- Coop:   Playwright on /de/aktionen/aktuelle-aktionen/c/m_1011 (a.productTile)
 - Migros: Playwright on /de/offers/home (article[mo-basic-product-card])
-- Lidl:   Leaflets API (endpoints.leaflets.schwarz) + product page HTML
-- Aldi:   PDF download + Docling OCR (fallback)
+
+Denner & Migros have no accessible PDF source (Issuu blocked from datacenter IPs).
 """
 
 import logging
@@ -188,14 +190,16 @@ async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[di
 
 
 # ---------------------------------------------------------------------------
-# Coop — Playwright scraping of aktionen page
+# Coop — ePaper PDF download → Docling extraction
 # ---------------------------------------------------------------------------
 async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Coop aktionen via Playwright.
+    """Scrape Coop via ePaper PDF download from epaper.coopzeitung.ch.
 
-    Coop uses SAP Hybris with SpeedKit lazy loading. Products are in
-    a.productTile elements with data-udo-price and data-udo-coupon attributes.
-    The correct URL is /de/aktionen/aktuelle-aktionen/c/m_1011 (NOT .html).
+    Strategy:
+    1. Navigate to ePaper storefront with Playwright
+    2. Find and click the PDF download button for the Prospektbeilagen
+    3. Download PDF → extract products with Docling OCR
+    4. The ePaper storefront (1101) has weekly Coopzeitung with Prospektbeilagen
     """
     try:
         from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
@@ -205,101 +209,104 @@ async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict
         crawler = PlaywrightCrawler(
             max_requests_per_crawl=1,
             headless=True,
-            request_handler_timeout=timedelta(seconds=90),
+            request_handler_timeout=timedelta(seconds=120),
         )
 
         @crawler.router.default_handler
         async def coop_handler(context: PlaywrightCrawlingContext) -> None:
-            context.log.info(f"Scraping Coop aktionen: {context.request.url}")
-            await context.page.wait_for_timeout(3000)
+            page = context.page
+            context.log.info(f"Scraping Coop ePaper: {context.request.url}")
 
-            # Scroll down to trigger SpeedKit lazy loading of product carousels
-            for _ in range(5):
-                await context.page.evaluate("window.scrollBy(0, 1500)")
-                await context.page.wait_for_timeout(1500)
-            # Scroll back up so all tiles are accessible
-            await context.page.evaluate("window.scrollTo(0, 0)")
-            await context.page.wait_for_timeout(1000)
-
-            items = await context.page.evaluate("""() => {
-                const results = [];
-                const tiles = document.querySelectorAll('a.productTile');
-                tiles.forEach(tile => {
-                    const name = tile.querySelector(
-                        '.productTile-details__name-value'
-                    )?.textContent?.trim() || '';
-
-                    // data-udo-price on dd element inside tile
-                    const priceEl = tile.querySelector('[data-udo-price]');
-                    const price = priceEl
-                        ? priceEl.getAttribute('data-udo-price') : '';
-
-                    // data-udo-coupon for discount
-                    const couponEl = tile.querySelector('[data-udo-coupon]');
-                    const discount = couponEl
-                        ? couponEl.getAttribute('data-udo-coupon') : '';
-
-                    // Old price
-                    const oldPriceEl = tile.querySelector(
-                        '.productTile__price-value-lead-price-old'
-                    );
-                    const oldPrice = oldPriceEl
-                        ? oldPriceEl.textContent?.trim() : '';
-
-                    // Image (lazy loaded)
-                    const imgEl = tile.querySelector(
-                        'img.product-listing__thumbnail__image'
-                    );
-                    const img = imgEl
-                        ? (imgEl.getAttribute('data-src')
-                            || imgEl.src || '') : '';
-
-                    // Product ID
-                    const pid = tile.getAttribute('data-productid') || '';
-
-                    if (name && name.length > 2) {
-                        results.push({
-                            name, price, discount, oldPrice, img, pid
-                        });
-                    }
-                });
-                return results;
-            }""")
-
-            context.log.info(f"Found {len(items)} Coop products")
-
-            seen: set[str] = set()
-            for item in items:
-                name = item["name"]
-                if name.lower() in seen:
-                    continue
-                seen.add(name.lower())
-
-                price = None
-                if item.get("price"):
-                    try:
-                        price = float(item["price"])
-                    except ValueError:
-                        price = _parse_price(item["price"])
-
-                img_url = item.get("img") or None
-                if img_url and img_url.startswith("//"):
-                    img_url = "https:" + img_url
-
-                found_products.append(
-                    {
-                        "retailer": "coop",
-                        "name": name,
-                        "price": price,
-                        "discount_pct": _parse_discount(item.get("discount", "")),
-                        "image_url": img_url,
-                        "category": "offer",
-                        "region": region,
-                    }
+            # Handle cookie consent — decline all
+            try:
+                decline_btn = page.locator(
+                    'button:has-text("Alles ablehnen"), '
+                    'button:has-text("Alle ablehnen")'
                 )
+                if await decline_btn.count() > 0:
+                    await decline_btn.first.click()
+                    await page.wait_for_timeout(1000)
+            except Exception:
+                pass
+
+            await page.wait_for_timeout(3000)
+
+            # Look for PDF download links in the page
+            pdf_urls: list[str] = []
+
+            # Intercept PDF responses
+            def on_response(response):
+                ct = response.headers.get("content-type", "")
+                if "pdf" in ct or response.url.endswith(".pdf"):
+                    pdf_urls.append(response.url)
+
+            page.on("response", on_response)
+
+            # Try clicking download button for Prospektbeilagen
+            beilagen = page.locator(
+                'a:has-text("Prospektbeilagen"), '
+                'a:has-text("Aktionen"), '
+                '[class*="supplement"]'
+            )
+            if await beilagen.count() > 0:
+                await beilagen.first.click()
+                await page.wait_for_timeout(3000)
+
+            # Try clicking the download button
+            download_btn = page.locator(
+                'button:has-text("herunterladen"), '
+                'a:has-text("herunterladen"), '
+                'button:has-text("Download"), '
+                'a[download]'
+            )
+            if await download_btn.count() > 0:
+                try:
+                    async with page.expect_download(timeout=15000) as dl_info:
+                        await download_btn.first.click()
+                    download = await dl_info.value
+                    # Read the downloaded file content
+                    pdf_path = await download.path()
+                    if pdf_path:
+                        from pathlib import Path as _Path
+                        pdf_bytes = _Path(pdf_path).read_bytes()
+                        if len(pdf_bytes) > 1000:
+                            products = await extract_products_from_pdf_bytes(
+                                pdf_bytes, "coop", "coop-zeitung.pdf"
+                            )
+                            found_products.extend(products)
+                            context.log.info(
+                                f"Coop: {len(products)} products from ePaper PDF"
+                            )
+                            return
+                except Exception as e:
+                    context.log.warning(f"Coop PDF download failed: {e}")
+
+            # Also check for any intercepted PDF URLs
+            if pdf_urls:
+                async with httpx.AsyncClient(
+                    headers=HEADERS, timeout=60.0
+                ) as client:
+                    for url in pdf_urls[:2]:
+                        try:
+                            resp = await client.get(url)
+                            if resp.is_success and len(resp.content) > 1000:
+                                products = await extract_products_from_pdf_bytes(
+                                    resp.content, "coop", "coop-prospekt.pdf"
+                                )
+                                found_products.extend(products)
+                                context.log.info(
+                                    f"Coop: {len(products)} products from "
+                                    f"intercepted PDF"
+                                )
+                                if found_products:
+                                    return
+                        except Exception as e:
+                            context.log.warning(f"Coop PDF fetch failed: {e}")
+
+            context.log.warning("Coop: no PDF found, no products extracted")
 
         await crawler.run(
-            ["https://www.coop.ch/de/aktionen/aktuelle-aktionen/c/m_1011"]
+            ["https://epaper.coopzeitung.ch/storefront/1101"]
         )
         logger.info(f"Coop: {len(found_products)} products")
         return found_products[:max_items]
@@ -396,41 +403,28 @@ async def scrape_denner(max_items: int = 200, region: str = "zurich") -> list[di
 
 
 # ---------------------------------------------------------------------------
-# Lidl — Leaflets API + product page scraping
+# Lidl — PDF download via Leaflets API → Docling extraction
 # ---------------------------------------------------------------------------
 async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Lidl via the Leaflets API for flyer products.
+    """Scrape Lidl via PDF download from the Leaflets API.
 
-    Lidl's flyer viewer uses a public JSON API at endpoints.leaflets.schwarz
-    that returns structured product data (names, links, positions on pages).
-    We also scrape the product listing page for additional items.
+    Strategy:
+    1. Fetch flyer listing page to discover current flyer slugs
+    2. Query Leaflets API for each slug → get pdfUrl
+    3. Download PDF → extract products with Docling OCR
+    4. Fallback: use product titles from the API if PDF extraction fails
     """
     products: list[dict] = []
 
-    # 1. Scrape flyer pages via Leaflets API
-    try:
-        await _scrape_lidl_flyers(products, max_items)
-    except Exception as e:
-        logger.warning(f"Lidl flyer API failed: {e}")
-
-    # Note: Lidl has no dedicated offers page; flyer API is the primary source
-
-    logger.info(f"Lidl: {len(products)} products total")
-    return products[:max_items]
-
-
-async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
-    """Fetch Lidl flyer data from the Leaflets API."""
-    async with httpx.AsyncClient(headers=HEADERS, timeout=30.0) as client:
-        # First get the flyer listing page to find current flyer slugs
+    async with httpx.AsyncClient(headers=HEADERS, timeout=120.0) as client:
+        # Step 1: Find current flyer slugs from the prospekte page
         resp = await client.get(
             "https://www.lidl.ch/c/de-CH/werbeprospekte-als-pdf/s10019683"
         )
         if not resp.is_success:
             logger.warning(f"Lidl flyer page: HTTP {resp.status_code}")
-            return
+            return []
 
-        # Extract flyer slugs from href attributes (e.g. /l/de/prospekt/lidl-aktuell-kw12/ar/0)
         slugs = re.findall(r"/prospekt/([^/]+)/ar/", resp.text)
         # Deduplicate while preserving order
         seen_slugs: list[str] = []
@@ -440,14 +434,13 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
         slugs = seen_slugs
 
         if not slugs:
-            # Fallback: try common slug patterns
             kw = date.today().isocalendar()[1]
             slugs = [f"lidl-aktuell-kw{kw}", f"lidl-aktuell-kw{kw:02d}"]
 
         logger.info(f"Lidl: found {len(slugs)} flyer slugs: {slugs[:5]}")
 
-        seen: set[str] = set()
-        for slug in slugs[:3]:  # max 3 flyers
+        # Step 2: For each slug, get PDF URL from Leaflets API and download
+        for slug in slugs[:3]:
             try:
                 api_url = (
                     f"https://endpoints.leaflets.schwarz/v4/flyer"
@@ -459,8 +452,28 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
 
                 data = api_resp.json()
                 flyer = data.get("flyer", data)
-                pages = flyer.get("pages", [])
+                pdf_url = flyer.get("pdfUrl")
 
+                if pdf_url:
+                    # Step 3: Download PDF and extract with Docling
+                    logger.info(f"Lidl: downloading PDF for '{slug}'")
+                    pdf_resp = await client.get(pdf_url)
+                    if pdf_resp.is_success and len(pdf_resp.content) > 1000:
+                        pdf_products = await extract_products_from_pdf_bytes(
+                            pdf_resp.content, "lidl", f"lidl-{slug}.pdf"
+                        )
+                        if pdf_products:
+                            logger.info(
+                                f"Lidl: {len(pdf_products)} products from "
+                                f"'{slug}' PDF ({len(pdf_resp.content)} bytes)"
+                            )
+                            products.extend(pdf_products)
+                            continue
+
+                # Fallback: extract product names from API (no prices)
+                logger.info(f"Lidl: PDF extraction failed for '{slug}', using API fallback")
+                pages = flyer.get("pages", [])
+                seen: set[str] = set()
                 for page in pages:
                     for link in page.get("links", []):
                         if link.get("displayType") != "product":
@@ -469,12 +482,11 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
                         if not title or len(title) < 3 or title.lower() in seen:
                             continue
                         seen.add(title.lower())
-
                         products.append(
                             {
                                 "retailer": "lidl",
                                 "name": title,
-                                "price": None,  # Flyer API doesn't include prices
+                                "price": None,
                                 "discount_pct": None,
                                 "image_url": None,
                                 "category": "flyer",
@@ -482,13 +494,8 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
                             }
                         )
 
-                        if len(products) >= max_items:
-                            return
-
-                logger.info(
-                    f"Lidl flyer '{slug}': "
-                    f"{sum(len(p.get('links', [])) for p in pages)} product links"
-                )
-
             except Exception as e:
                 logger.warning(f"Lidl flyer '{slug}' failed: {e}")
+
+    logger.info(f"Lidl: {len(products)} products total")
+    return products[:max_items]
