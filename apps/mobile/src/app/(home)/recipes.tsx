@@ -1,7 +1,15 @@
-import { ApiError, discoverRecipes, swipeRecipe, type Recipe } from "@/lib/api";
+import {
+  ApiError,
+  bulkAddGroceryItems,
+  discoverRecipes,
+  getGroceryLists,
+  swipeRecipe,
+  type GroceryList,
+  type Recipe,
+} from "@/lib/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function RecipesScreen() {
@@ -14,6 +22,10 @@ export default function RecipesScreen() {
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [swiping, setSwiping] = useState(false);
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [groceryLists, setGroceryLists] = useState<GroceryList[]>([]);
+  const [addingToList, setAddingToList] = useState(false);
+  const [addedMsg, setAddedMsg] = useState<string | null>(null);
 
   const loadRecipes = useCallback(async () => {
     setStatus("loading");
@@ -46,6 +58,42 @@ export default function RecipesScreen() {
   }, [loadRecipes]);
 
   const currentRecipe: Recipe | undefined = recipes[currentIndex];
+
+  const onAddToList = useCallback(async () => {
+    if (!currentRecipe) return;
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const lists = await getGroceryLists(token);
+      setGroceryLists(lists);
+      setShowListPicker(true);
+    } catch {
+      // ignore
+    }
+  }, [currentRecipe, getToken]);
+
+  const onSelectList = useCallback(
+    async (listId: string) => {
+      if (!currentRecipe || addingToList) return;
+      setAddingToList(true);
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const items = currentRecipe.ingredients.map((name) => ({
+          ingredient_name: name,
+        }));
+        await bulkAddGroceryItems(token, listId, items);
+        setShowListPicker(false);
+        setAddedMsg(`${currentRecipe.ingredients.length} ingredients added!`);
+        setTimeout(() => setAddedMsg(null), 2500);
+      } catch {
+        // ignore
+      } finally {
+        setAddingToList(false);
+      }
+    },
+    [currentRecipe, addingToList, getToken],
+  );
 
   const onSwipe = useCallback(
     async (action: "accept" | "reject") => {
@@ -146,8 +194,23 @@ export default function RecipesScreen() {
               </View>
             </View>
 
+            {/* Add to list button */}
+            <Pressable
+              onPress={onAddToList}
+              className="rounded-xl border border-[#0a7ea4] py-2.5 items-center mt-2 active:opacity-80"
+            >
+              <Text className="text-[#0a7ea4] font-semibold text-sm">
+                Add Ingredients to Grocery List
+              </Text>
+            </Pressable>
+            {addedMsg && (
+              <Text className="text-sm text-green-600 text-center">
+                {addedMsg}
+              </Text>
+            )}
+
             {/* Swipe buttons */}
-            <View className="flex-row justify-center gap-6 mt-6">
+            <View className="flex-row justify-center gap-6 mt-4">
               <Pressable
                 onPress={() => onSwipe("reject")}
                 disabled={swiping}
@@ -165,6 +228,48 @@ export default function RecipesScreen() {
             </View>
           </View>
         )}
+
+        {/* Grocery list picker modal */}
+        <Modal
+          visible={showListPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowListPicker(false)}
+        >
+          <View className="flex-1 justify-end bg-black/40">
+            <View className="bg-white rounded-t-2xl p-6 gap-3">
+              <Text className="text-lg font-bold text-gray-900">
+                Choose a Grocery List
+              </Text>
+              {groceryLists.length === 0 && (
+                <Text className="text-sm text-gray-500 py-4 text-center">
+                  No grocery lists found
+                </Text>
+              )}
+              {groceryLists.map((list) => (
+                <Pressable
+                  key={list.id}
+                  onPress={() => onSelectList(list.id)}
+                  disabled={addingToList}
+                  className={`rounded-xl border border-gray-200 p-4 ${addingToList ? "opacity-60" : ""} active:bg-gray-50`}
+                >
+                  <Text className="text-base font-semibold text-gray-900">
+                    {list.name}
+                  </Text>
+                  <Text className="text-xs text-gray-500">
+                    {list.items.length} items
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => setShowListPicker(false)}
+                className="rounded-xl bg-gray-100 py-3 items-center mt-1 active:opacity-80"
+              >
+                <Text className="text-gray-700 font-semibold">Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );

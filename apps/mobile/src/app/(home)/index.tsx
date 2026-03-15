@@ -1,9 +1,11 @@
 import {
   ApiError,
   askProductQuestion,
+  compareProducts,
   getRecommendedProducts,
   searchProducts,
   submitProductFeedback,
+  type CompareResult,
   type ProductSearchResult,
 } from "@/lib/api";
 import { useAuth } from "@clerk/clerk-expo";
@@ -112,6 +114,30 @@ export default function SearchScreen() {
     "idle",
   );
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const [compareQuery, setCompareQuery] = useState("");
+  const [compareResults, setCompareResults] = useState<CompareResult[]>([]);
+  const [compareStatus, setCompareStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+
+  const onCompare = useCallback(async () => {
+    const trimmed = compareQuery.trim();
+    if (!trimmed) return;
+    setCompareStatus("loading");
+    try {
+      const token = await getToken();
+      if (!token) {
+        setCompareStatus("error");
+        return;
+      }
+      const data = await compareProducts(token, trimmed);
+      setCompareResults(data);
+      setCompareStatus("ok");
+    } catch {
+      setCompareStatus("error");
+    }
+  }, [compareQuery, getToken]);
 
   const loadRecommendations = useCallback(async () => {
     setRecsStatus("loading");
@@ -365,6 +391,85 @@ export default function SearchScreen() {
                     ))}
                   </View>
                 )}
+              </View>
+            )}
+          </View>
+
+          {/* Price comparison section */}
+          <View className="gap-2 border-t border-gray-200 pt-4 mt-2">
+            <Text className="text-lg font-semibold text-gray-900">
+              Price Comparison
+            </Text>
+            <Text className="text-sm text-gray-500">
+              Compare prices for a product across retailers
+            </Text>
+            <View className="flex-row gap-2">
+              <TextInput
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 bg-white"
+                value={compareQuery}
+                placeholder="e.g. Vollmilch 1L"
+                placeholderTextColor="#6b7280"
+                onChangeText={setCompareQuery}
+                onSubmitEditing={onCompare}
+                returnKeyType="search"
+                autoCapitalize="none"
+              />
+              <Pressable
+                onPress={onCompare}
+                disabled={compareStatus === "loading" || !compareQuery.trim()}
+                className={`rounded-xl bg-[#0a7ea4] px-4 py-3 justify-center ${compareStatus === "loading" || !compareQuery.trim() ? "opacity-60" : ""} active:opacity-90`}
+              >
+                {compareStatus === "loading" ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold">Compare</Text>
+                )}
+              </Pressable>
+            </View>
+            {compareStatus === "ok" && compareResults.length === 0 && (
+              <Text className="text-sm text-gray-500 text-center py-4">
+                No results found
+              </Text>
+            )}
+            {compareResults.length > 0 && (
+              <View className="gap-2">
+                {compareResults.map((item, idx) => (
+                  <View
+                    key={item.id}
+                    className={`flex-row items-center justify-between rounded-xl border p-3 ${idx === 0 ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}
+                  >
+                    <View className="flex-1 gap-0.5">
+                      <Text
+                        className="text-sm font-medium text-gray-900"
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text className="text-xs text-gray-500">
+                        {item.retailer}
+                      </Text>
+                    </View>
+                    <View className="items-end">
+                      {item.price != null && (
+                        <Text className="text-base font-bold text-gray-900">
+                          CHF {item.price.toFixed(2)}
+                        </Text>
+                      )}
+                      {item.discount_pct != null && item.discount_pct > 0 && (
+                        <Text className="text-xs font-bold text-red-600">
+                          -{item.discount_pct}%
+                        </Text>
+                      )}
+                    </View>
+                    {idx === 0 && (
+                      <View className="ml-2 rounded-full bg-green-200 px-2 py-0.5">
+                        <Text className="text-xs font-bold text-green-800">
+                          Best
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
           </View>

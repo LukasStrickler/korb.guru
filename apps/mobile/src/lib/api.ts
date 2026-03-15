@@ -263,3 +263,53 @@ export const bulkUpdateGroceryItems = (
     method: "PATCH",
     body: { updates },
   });
+
+export type CompareResult = {
+  id: string;
+  retailer: string;
+  name: string;
+  price: number | null;
+  discount_pct: number | null;
+  score: number;
+};
+
+export const compareProducts = (
+  token: string,
+  ingredient: string,
+  limit = 10,
+) =>
+  apiFetchWithAuth<CompareResult[]>(
+    `/api/v1/products/compare?ingredient=${encodeURIComponent(ingredient)}&limit=${limit}`,
+    token,
+  );
+
+export const batchSearchProducts = (
+  token: string,
+  queries: string[],
+  retailers?: string[],
+) =>
+  apiFetchWithAuth<Record<string, CompareResult[]>>(
+    "/api/v1/products/batch-search",
+    token,
+    {
+      method: "POST",
+      body: { queries, retailers: retailers ?? null, limit: 5 },
+    },
+  );
+
+export type GroceryItemCreate = {
+  ingredient_name: string;
+  quantity?: string | null;
+  category?: string;
+};
+
+export const bulkAddGroceryItems = (
+  token: string,
+  listId: string,
+  items: GroceryItemCreate[],
+) =>
+  apiFetchWithAuth<GroceryItem[]>(
+    `/api/v1/grocery/lists/${listId}/items/bulk`,
+    token,
+    { method: "POST", body: { items } },
+  );

@@ -1,7 +1,9 @@
 import {
   ApiError,
+  batchSearchProducts,
   bulkUpdateGroceryItems,
   getGroceryLists,
+  type CompareResult,
   type GroceryItem,
   type GroceryList,
 } from "@/lib/api";
@@ -58,6 +60,31 @@ export default function ListsScreen() {
     "idle",
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [priceResults, setPriceResults] = useState<Record<
+    string,
+    CompareResult[]
+  > | null>(null);
+  const [priceListId, setPriceListId] = useState<string | null>(null);
+  const [priceStatus, setPriceStatus] = useState<
+    "idle" | "loading" | "ok" | "error"
+  >("idle");
+
+  const findBestPrices = async (list: GroceryList) => {
+    const unchecked = list.items.filter((i) => !i.is_checked);
+    if (unchecked.length === 0) return;
+    setPriceStatus("loading");
+    setPriceListId(list.id);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const queries = unchecked.map((i) => i.ingredient_name);
+      const data = await batchSearchProducts(token, queries);
+      setPriceResults(data);
+      setPriceStatus("ok");
+    } catch {
+      setPriceStatus("error");
+    }
+  };
 
   const loadLists = useCallback(async () => {
     setStatus("loading");
@@ -226,6 +253,68 @@ export default function ListsScreen() {
                   Empty list
                 </Text>
               )}
+              {list.items.filter((i) => !i.is_checked).length > 0 && (
+                <Pressable
+                  onPress={() => findBestPrices(list)}
+                  disabled={
+                    priceStatus === "loading" && priceListId === list.id
+                  }
+                  className={`rounded-xl bg-[#0a7ea4] py-2.5 items-center mt-1 ${priceStatus === "loading" && priceListId === list.id ? "opacity-60" : ""} active:opacity-90`}
+                >
+                  {priceStatus === "loading" && priceListId === list.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text className="text-white font-semibold text-sm">
+                      Find Best Prices
+                    </Text>
+                  )}
+                </Pressable>
+              )}
+              {priceStatus === "ok" &&
+                priceListId === list.id &&
+                priceResults && (
+                  <View className="gap-2 mt-2 border-t border-gray-100 pt-2">
+                    <Text className="text-sm font-semibold text-gray-700">
+                      Best Prices Found
+                    </Text>
+                    {Object.entries(priceResults).map(
+                      ([ingredient, products]) => (
+                        <View key={ingredient} className="gap-1">
+                          <Text className="text-xs font-medium text-gray-500 uppercase">
+                            {ingredient}
+                          </Text>
+                          {products.length === 0 ? (
+                            <Text className="text-xs text-gray-400">
+                              No results
+                            </Text>
+                          ) : (
+                            products.slice(0, 3).map((p) => (
+                              <View
+                                key={p.id}
+                                className="flex-row justify-between items-center"
+                              >
+                                <Text
+                                  className="text-sm text-gray-900 flex-1"
+                                  numberOfLines={1}
+                                >
+                                  {p.name}
+                                </Text>
+                                <Text className="text-xs text-gray-500 mx-2">
+                                  {p.retailer}
+                                </Text>
+                                {p.price != null && (
+                                  <Text className="text-sm font-semibold text-gray-900">
+                                    CHF {p.price.toFixed(2)}
+                                  </Text>
+                                )}
+                              </View>
+                            ))
+                          )}
+                        </View>
+                      ),
+                    )}
+                  </View>
+                )}
             </View>
           ))}
         </View>
