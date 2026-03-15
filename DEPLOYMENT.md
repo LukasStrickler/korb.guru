@@ -78,7 +78,7 @@ Coolify handles HTTPS automatically via Traefik:
 For the frontend, set `CORS_ORIGINS` to your actual frontend domain:
 
 ```
-CORS_ORIGINS=["https://app.korb.guru"]
+CORS_ORIGINS=https://app.korb.guru
 ```
 
 ---

@@ -121,7 +121,7 @@ def _is_junk_name(name: str) -> bool:
         return True
     # Names containing "Wert:" or similar metadata/fragments
     lower = name.lower()
-    if re.search(r"\b(?:wert:|normalpreis|statt|erwartet\.|preis)\b", lower):
+    if re.search(r"(?:\b(?:normalpreis|statt|preis)\b|wert:|erwartet\.)", lower):
         if len(name) < 20:  # Short fragments containing these words
             return True
     # Date patterns like "26.2.bis18." or "Nur von Do., 26.2."
