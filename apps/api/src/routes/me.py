@@ -1,46 +1,75 @@
-"""
-Protected routes for current user: GET /me and DELETE /me.
-
-DEV NOTE: These routes are scaffolded for development. DELETE /me returns a stub
-and does not actually delete the user. For production, implement the Clerk Backend
-API call to delete the user and any API-held data. See AGENTS.md Dev vs Production.
-"""
+"""Protected routes for current user: profile, health streak, deletion."""
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import AuthUser, require_clerk_auth
+from ..db import get_db
+from ..dependencies import get_current_user
+from ..models.user import User
+from ..schemas.auth import ProfileUpdate, UserResponse
 
-router = APIRouter(tags=["me"])
+router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
-@router.get("/me")
-async def get_me(user: AuthUser = Depends(require_clerk_auth)):
-    """
-    Return the current authenticated user (placeholder).
+@router.get("/me", response_model=UserResponse)
+async def get_me(user: User = Depends(get_current_user)):
+    return user
 
-    Requires `Authorization: Bearer <clerk_session_token>`.
-    The mobile app obtains the token via Clerk's getToken() and sends it here.
-    """
-    return {
-        "user_id": user.user_id,
-        "message": "Authenticated. Use this pattern for other protected routes.",
-    }
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile(
+    body: ProfileUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    if body.username is not None:
+        user.username = body.username
+    if body.avatar_url is not None:
+        user.avatar_url = body.avatar_url
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+@router.get("/health-streak")
+async def get_health_streak(user: User = Depends(get_current_user)):
+    return {"health_streak_days": user.health_streak_days}
+
+
+@router.post("/health-streak/increment")
+async def increment_health_streak(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    await session.execute(
+        update(User)
+        .where(User.id == user.id)
+        .values(health_streak_days=User.health_streak_days + 1)
+    )
+    await session.commit()
+    await session.refresh(user)
+    return {"health_streak_days": user.health_streak_days}
+
+
+@router.post("/health-streak/reset")
+async def reset_health_streak(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+):
+    await session.execute(
+        update(User).where(User.id == user.id).values(health_streak_days=0)
+    )
+    await session.commit()
+    await session.refresh(user)
+    return {"health_streak_days": user.health_streak_days}
 
 
 @router.delete("/me")
-async def delete_me(user: AuthUser = Depends(require_clerk_auth)):
-    """
-    Request account deletion (App Store compliance).
+async def delete_me(user: User = Depends(get_current_user)):
+    """Account deletion stub (App Store compliance).
 
-    Requires `Authorization: Bearer <clerk_session_token>`.
-    Stub: returns 200. For production, call Clerk Backend API to delete the user
-    (see https://clerk.com/docs/reference/backend-api/tag/Users#operation/DeleteUser)
-    and remove any API-held user data. The app will then delete Convex data and
-    sign out.
+    Production: call Clerk Backend API.
     """
-    # DEV PLACEHOLDER: Returns 200 without actual deletion.
-    # PRODUCTION: Call Clerk Backend API with CLERK_SECRET_KEY to delete the user:
-    #   https://clerk.com/docs/reference/backend-api/tag/Users#operation/DeleteUser
-    # Then delete any user data stored in this API (e.g., database records).
-    # The mobile app will handle deleting Convex data and signing out.
     return {"ok": True}

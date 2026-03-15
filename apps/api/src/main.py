@@ -2,13 +2,13 @@ import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 # Load root .env when running standalone (e.g. cd apps/api && uv run uvicorn).
 # Via pnpm dev from root, dotenv-cli injects env; this is a fallback.
-# __file__ → .../apps/api/src/main.py → parent**4 = repo root.
 _repo_root = Path(__file__).resolve().parent.parent.parent.parent
 _root_env = _repo_root / ".env"
 if _root_env.is_file():
@@ -23,21 +23,59 @@ from .analytics import flush as posthog_flush  # noqa: E402
 from .logging_config import configure_logging  # noqa: E402
 from .request_context import set_request_id  # noqa: E402
 from .routes import (  # noqa: E402
+    budget_router,
     examples_router,
+    grocery_router,
     health_router,
     hello_router,
+    households_router,
     ingest_router,
     me_router,
-    users_router,
+    meal_plans_router,
+    messages_router,
+    notifications_router,
+    polls_router,
+    products_router,
+    receipts_router,
+    recipes_router,
+    route_router,
+    status_router,
 )
 
 configure_logging()
 _logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: initialize Qdrant collections. Shutdown: cleanup."""
+    try:
+        from .qdrant.collections import init_collections
+
+        init_collections()
+        _logger.info("Qdrant collections initialized")
+    except Exception as e:
+        err_msg = str(e).lower()
+        if (
+            "already exists" in err_msg
+            or "connection" in err_msg
+            or "connect" in err_msg
+            or "name resolution" in err_msg
+        ):
+            _logger.warning(
+                "Qdrant init skipped (not connected or already exists): %s", e
+            )
+        else:
+            _logger.error("Qdrant init failed: %s", e)
+            raise
+    yield
+
+
 app = FastAPI(
     title="Korb API",
     description="Backend API for Korb meal planning application",
-    version="0.1.0",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 # CORS: origins from CORS_ORIGINS env (comma-separated). Empty/unset = no origins.
@@ -51,12 +89,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── Legacy routes (kept for backward compatibility) ──────────
 app.include_router(health_router)
+app.include_router(status_router)
 app.include_router(hello_router)
 app.include_router(examples_router)
 app.include_router(ingest_router)
+
+# ── Integrated backend routes (Clerk auth, /api/v1/ prefix) ──
 app.include_router(me_router)
-app.include_router(users_router)
+app.include_router(households_router)
+app.include_router(recipes_router)
+app.include_router(meal_plans_router)
+app.include_router(grocery_router)
+app.include_router(budget_router)
+app.include_router(products_router)
+app.include_router(messages_router)
+app.include_router(polls_router)
+app.include_router(notifications_router)
+app.include_router(route_router)
+app.include_router(receipts_router)
 
 
 @app.exception_handler(Exception)

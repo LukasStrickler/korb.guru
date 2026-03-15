@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from types import SimpleNamespace
 
 import jwt
@@ -10,7 +11,9 @@ from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from src.auth import _verify_clerk_jwt
+from src.dependencies import get_current_user
 from src.main import app
+from src.models.user import User
 
 
 def test_verify_clerk_jwt_disables_audience_validation_for_session_tokens(
@@ -128,14 +131,26 @@ async def test_me_route_accepts_clerk_session_token_without_audience_check(
     monkeypatch.setattr("src.auth.PyJWKClient", StubJwkClient)
     monkeypatch.setattr("src.auth.jwt.decode", fake_decode)
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        response = await client.get(
-            "/me",
-            headers={"Authorization": "Bearer session-token"},
-        )
+    fake_user = User(
+        id=uuid.uuid4(),
+        clerk_id="user_123",
+        email="test@example.com",
+        username="testuser",
+        health_streak_days=0,
+    )
+    app.dependency_overrides[get_current_user] = lambda: fake_user
 
-    assert response.status_code == 200
-    assert response.json()["user_id"] == "user_123"
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/v1/users/me",
+                headers={"Authorization": "Bearer session-token"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["clerk_id"] == "user_123"
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

@@ -13,8 +13,27 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, pool
 
 from alembic import context
-from src.models import user  # noqa: F401 - register User model for autogenerate
-from src.models.base import Base  # noqa: F401 - imported for metadata registration
+
+# Import ALL models so they register on Base.metadata for autogenerate
+from src.models import (  # noqa: F401
+    Base,
+    BudgetEntry,
+    BudgetSettings,
+    GroceryItem,
+    GroceryList,
+    Household,
+    MealPlan,
+    MealPoll,
+    Message,
+    Notification,
+    PollVote,
+    Product,
+    Recipe,
+    RecipeIngredient,
+    Store,
+    SwipeAction,
+    User,
+)
 
 # Load .env: first try current directory, then repo root (relative to this file).
 
