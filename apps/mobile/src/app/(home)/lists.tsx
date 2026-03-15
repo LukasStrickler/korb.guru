@@ -2,7 +2,11 @@ import {
   ApiError,
   batchSearchProducts,
   bulkUpdateGroceryItems,
+  createAutoRefillRule,
+  createGroceryList,
+  getAutoRefillRules,
   getGroceryLists,
+  type AutoRefillRule,
   type CompareResult,
   type GroceryItem,
   type GroceryList,
@@ -14,6 +18,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -69,6 +74,66 @@ export default function ListsScreen() {
     "idle" | "loading" | "ok" | "error"
   >("idle");
 
+  // New list creation
+  const [newListName, setNewListName] = useState("");
+  const [creatingList, setCreatingList] = useState(false);
+
+  const onCreateList = async () => {
+    const name = newListName.trim();
+    if (!name) return;
+    setCreatingList(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const newList = await createGroceryList(token, name);
+      setLists((prev) => [newList, ...prev]);
+      setNewListName("");
+    } catch {
+      // ignore
+    } finally {
+      setCreatingList(false);
+    }
+  };
+
+  // Auto-refill rules
+  const [refillRules, setRefillRules] = useState<AutoRefillRule[]>([]);
+  const [refillIngredient, setRefillIngredient] = useState("");
+  const [refillDays, setRefillDays] = useState("7");
+  const [addingRule, setAddingRule] = useState(false);
+
+  const loadRefillRules = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const data = await getAutoRefillRules(token);
+      setRefillRules(data);
+    } catch {
+      // ignore
+    }
+  }, [getToken]);
+
+  const onAddRefillRule = async () => {
+    const ingredient = refillIngredient.trim();
+    if (!ingredient) return;
+    setAddingRule(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const rule = await createAutoRefillRule(
+        token,
+        ingredient,
+        parseInt(refillDays, 10) || 7,
+      );
+      setRefillRules((prev) => [...prev, rule]);
+      setRefillIngredient("");
+      setRefillDays("7");
+    } catch {
+      // ignore
+    } finally {
+      setAddingRule(false);
+    }
+  };
+
   const findBestPrices = async (list: GroceryList) => {
     const unchecked = list.items.filter((i) => !i.is_checked);
     if (unchecked.length === 0) return;
@@ -113,7 +178,8 @@ export default function ListsScreen() {
 
   useEffect(() => {
     loadLists();
-  }, [loadLists]);
+    loadRefillRules();
+  }, [loadLists, loadRefillRules]);
 
   const toggleItem = async (listIndex: number, itemId: string) => {
     const list = lists[listIndex];
@@ -184,6 +250,31 @@ export default function ListsScreen() {
           <Text className="text-3xl font-bold text-gray-900">
             Grocery Lists
           </Text>
+
+          {/* Create new list */}
+          <View className="flex-row gap-2">
+            <TextInput
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 bg-white"
+              value={newListName}
+              placeholder="New list name..."
+              placeholderTextColor="#6b7280"
+              onChangeText={setNewListName}
+              onSubmitEditing={onCreateList}
+              returnKeyType="done"
+              autoCapitalize="sentences"
+            />
+            <Pressable
+              onPress={onCreateList}
+              disabled={creatingList || !newListName.trim()}
+              className={`rounded-xl bg-[#0a7ea4] px-4 py-3 justify-center ${creatingList || !newListName.trim() ? "opacity-60" : ""} active:opacity-90`}
+            >
+              {creatingList ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-white font-semibold">Create</Text>
+              )}
+            </Pressable>
+          </View>
 
           {status === "loading" && (
             <View className="items-center py-12">
@@ -317,6 +408,57 @@ export default function ListsScreen() {
                 )}
             </View>
           ))}
+          {/* Auto-Refill Rules */}
+          <View className="gap-3 border-t border-gray-200 pt-4 mt-2">
+            <Text className="text-lg font-semibold text-gray-900">
+              Auto-Refill Rules
+            </Text>
+            <Text className="text-sm text-gray-500">
+              Get reminded to restock ingredients
+            </Text>
+            {refillRules.map((rule) => (
+              <View
+                key={rule.id}
+                className="flex-row justify-between items-center rounded-xl border border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base text-gray-900">
+                  {rule.ingredient_name}
+                </Text>
+                <Text className="text-sm text-gray-500">
+                  every {rule.threshold_days}d
+                </Text>
+              </View>
+            ))}
+            <View className="flex-row gap-2">
+              <TextInput
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base text-gray-900 bg-white"
+                value={refillIngredient}
+                placeholder="Ingredient..."
+                placeholderTextColor="#6b7280"
+                onChangeText={setRefillIngredient}
+                autoCapitalize="none"
+              />
+              <TextInput
+                className="w-16 border border-gray-300 rounded-xl px-3 py-3 text-base text-gray-900 bg-white text-center"
+                value={refillDays}
+                placeholder="Days"
+                placeholderTextColor="#6b7280"
+                onChangeText={setRefillDays}
+                keyboardType="number-pad"
+              />
+              <Pressable
+                onPress={onAddRefillRule}
+                disabled={addingRule || !refillIngredient.trim()}
+                className={`rounded-xl bg-[#0a7ea4] px-4 py-3 justify-center ${addingRule || !refillIngredient.trim() ? "opacity-60" : ""} active:opacity-90`}
+              >
+                {addingRule ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold">Add</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

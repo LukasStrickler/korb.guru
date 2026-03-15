@@ -14,6 +14,7 @@ from ..schemas.grocery import (
     BulkItemCreateRequest,
     GroceryItemResponse,
     GroceryItemUpdate,
+    GroceryListCreate,
     GroceryListResponse,
 )
 
@@ -62,6 +63,24 @@ async def get_lists(
         )
         for gl in lists
     ]
+
+
+@router.post("/lists", response_model=GroceryListResponse, status_code=201)
+async def create_list(
+    body: GroceryListCreate,
+    household_id: uuid.UUID = Depends(get_household_id),
+    session: AsyncSession = Depends(get_db),
+):
+    grocery_list = GroceryList(name=body.name, household_id=household_id)
+    session.add(grocery_list)
+    await session.commit()
+    await session.refresh(grocery_list)
+    return GroceryListResponse(
+        id=grocery_list.id,
+        name=grocery_list.name,
+        estimated_total=grocery_list.estimated_total,
+        items=[],
+    )
 
 
 @router.patch("/items/bulk")

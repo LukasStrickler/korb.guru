@@ -43,3 +43,7 @@ class GroceryItemCreate(BaseModel):
 
 class BulkItemCreateRequest(BaseModel):
     items: list[GroceryItemCreate] = Field(min_length=1, max_length=100)
+
+
+class GroceryListCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
