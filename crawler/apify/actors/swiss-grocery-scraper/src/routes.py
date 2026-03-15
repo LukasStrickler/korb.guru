@@ -190,130 +190,128 @@ async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[di
 
 
 # ---------------------------------------------------------------------------
-# Coop — ePaper PDF download → Docling extraction
+# Coop — ePaper JSON API → page PDFs → pdfplumber extraction
 # ---------------------------------------------------------------------------
+_EPAPER_BASE = "https://epaper.coopzeitung.ch/epaper/1.0"
+_COOP_DEF_ID = 1130  # Coopzeitung German edition
+
+# Department containing product advertisements / offer pages
+_OFFER_DEPARTMENTS = {"anzeigen"}
+
+
 async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Coop via ePaper PDF download from epaper.coopzeitung.ch.
+    """Scrape Coop via ePaper JSON API (no browser needed).
 
+    The Coopzeitung ePaper (epaper.coopzeitung.ch) exposes a public JSON API.
     Strategy:
-    1. Navigate to ePaper storefront with Playwright
-    2. Find and click the PDF download button for the Prospektbeilagen
-    3. Download PDF → extract products with Docling OCR
-    4. The ePaper storefront (1101) has weekly Coopzeitung with Prospektbeilagen
+    1. Find latest edition via findEditionsFromDate
+    2. Get all pages via getPages
+    3. Filter to "Anzeigen" department (product advertisements)
+    4. Download page PDFs from pre-signed S3 URLs
+    5. Extract products with pdfplumber
     """
-    try:
-        from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
+    today = date.today()
+    products: list[dict] = []
 
-        found_products: list[dict] = []
-
-        crawler = PlaywrightCrawler(
-            max_requests_per_crawl=1,
-            headless=True,
-            request_handler_timeout=timedelta(seconds=120),
+    async with httpx.AsyncClient(headers=HEADERS, timeout=60.0) as client:
+        # Step 1: Find latest edition
+        find_resp = await client.post(
+            f"{_EPAPER_BASE}/findEditionsFromDate",
+            json={
+                "editions": [
+                    {"publicationDate": today.isoformat(), "defId": _COOP_DEF_ID}
+                ],
+                "startDate": (today - timedelta(days=14)).isoformat(),
+                "maxHits": 3,
+            },
         )
+        if not find_resp.is_success:
+            logger.warning(f"Coop ePaper findEditions: HTTP {find_resp.status_code}")
+            return []
 
-        @crawler.router.default_handler
-        async def coop_handler(context: PlaywrightCrawlingContext) -> None:
-            page = context.page
-            context.log.info(f"Scraping Coop ePaper: {context.request.url}")
+        resp_json = find_resp.json()
+        edition_list = resp_json.get("data", [])
+        if not edition_list:
+            logger.warning("Coop: no editions found")
+            return []
 
-            # Handle cookie consent — decline all
+        # Each edition entry has { pages: [{...metadata}], inlays: [] }
+        first_edition = edition_list[0]
+        pub_date = first_edition["pages"][0].get(
+            "publicationDate", today.isoformat()
+        )
+        logger.info(f"Coop: latest edition {pub_date}")
+
+        # Step 2: Get all pages for this edition
+        pages_resp = await client.post(
+            f"{_EPAPER_BASE}/getPages",
+            json={
+                "editions": [{"defId": _COOP_DEF_ID, "publicationDate": pub_date}]
+            },
+        )
+        if not pages_resp.is_success:
+            logger.warning(f"Coop ePaper getPages: HTTP {pages_resp.status_code}")
+            return []
+
+        pages_json = pages_resp.json()
+        all_pages = pages_json.get("data", {}).get("pages", [])
+        if not all_pages:
+            logger.warning("Coop: no pages returned")
+            return []
+
+        # Step 3: Filter to offer-related departments
+        offer_pages = [
+            pg for pg in all_pages
+            if (pg.get("pmDepartment") or "").lower() in _OFFER_DEPARTMENTS
+        ]
+
+        if not offer_pages:
+            logger.info("Coop: no department match, using first 20 pages")
+            offer_pages = all_pages[:20]
+        else:
+            logger.info(
+                f"Coop: {len(offer_pages)} pages from offer departments "
+                f"(out of {len(all_pages)} total)"
+            )
+
+        # Step 4: Download page PDFs and extract products
+        # Limit to 30 pages max to keep runtime reasonable
+        seen: set[str] = set()
+        for pg in offer_pages[:30]:
+            doc_urls = pg.get("pageDocUrl", {})
+            highres = doc_urls.get("HIGHRES", {})
+            pdf_url = highres.get("url")
+
+            if not pdf_url:
+                continue
+
             try:
-                decline_btn = page.locator(
-                    'button:has-text("Alles ablehnen"), '
-                    'button:has-text("Alle ablehnen")'
+                pdf_resp = await client.get(pdf_url)
+                if not pdf_resp.is_success or len(pdf_resp.content) < 500:
+                    continue
+
+                page_num = pg.get("pmPageNumber", 0)
+                # skip_ocr=True: single-page PDFs with 1-4 products
+                # are normal for ePaper pages — don't trigger slow Docling
+                page_products = await extract_products_from_pdf_bytes(
+                    pdf_resp.content, "coop", f"coop-page-{page_num}.pdf",
+                    skip_ocr=True,
                 )
-                if await decline_btn.count() > 0:
-                    await decline_btn.first.click()
-                    await page.wait_for_timeout(1000)
-            except Exception:
-                pass
 
-            await page.wait_for_timeout(3000)
+                for p in page_products:
+                    name_lower = p["name"].lower()
+                    if name_lower not in seen:
+                        seen.add(name_lower)
+                        p["region"] = region
+                        products.append(p)
 
-            # Look for PDF download links in the page
-            pdf_urls: list[str] = []
+            except Exception as e:
+                logger.warning(
+                    f"Coop page {pg.get('pmPageNumber', '?')} PDF failed: {e}"
+                )
 
-            # Intercept PDF responses
-            def on_response(response):
-                ct = response.headers.get("content-type", "")
-                if "pdf" in ct or response.url.endswith(".pdf"):
-                    pdf_urls.append(response.url)
-
-            page.on("response", on_response)
-
-            # Try clicking download button for Prospektbeilagen
-            beilagen = page.locator(
-                'a:has-text("Prospektbeilagen"), '
-                'a:has-text("Aktionen"), '
-                '[class*="supplement"]'
-            )
-            if await beilagen.count() > 0:
-                await beilagen.first.click()
-                await page.wait_for_timeout(3000)
-
-            # Try clicking the download button
-            download_btn = page.locator(
-                'button:has-text("herunterladen"), '
-                'a:has-text("herunterladen"), '
-                'button:has-text("Download"), '
-                'a[download]'
-            )
-            if await download_btn.count() > 0:
-                try:
-                    async with page.expect_download(timeout=15000) as dl_info:
-                        await download_btn.first.click()
-                    download = await dl_info.value
-                    # Read the downloaded file content
-                    pdf_path = await download.path()
-                    if pdf_path:
-                        from pathlib import Path as _Path
-                        pdf_bytes = _Path(pdf_path).read_bytes()
-                        if len(pdf_bytes) > 1000:
-                            products = await extract_products_from_pdf_bytes(
-                                pdf_bytes, "coop", "coop-zeitung.pdf"
-                            )
-                            found_products.extend(products)
-                            context.log.info(
-                                f"Coop: {len(products)} products from ePaper PDF"
-                            )
-                            return
-                except Exception as e:
-                    context.log.warning(f"Coop PDF download failed: {e}")
-
-            # Also check for any intercepted PDF URLs
-            if pdf_urls:
-                async with httpx.AsyncClient(
-                    headers=HEADERS, timeout=60.0
-                ) as client:
-                    for url in pdf_urls[:2]:
-                        try:
-                            resp = await client.get(url)
-                            if resp.is_success and len(resp.content) > 1000:
-                                products = await extract_products_from_pdf_bytes(
-                                    resp.content, "coop", "coop-prospekt.pdf"
-                                )
-                                found_products.extend(products)
-                                context.log.info(
-                                    f"Coop: {len(products)} products from "
-                                    f"intercepted PDF"
-                                )
-                                if found_products:
-                                    return
-                        except Exception as e:
-                            context.log.warning(f"Coop PDF fetch failed: {e}")
-
-            context.log.warning("Coop: no PDF found, no products extracted")
-
-        await crawler.run(
-            ["https://epaper.coopzeitung.ch/storefront/1101"]
-        )
-        logger.info(f"Coop: {len(found_products)} products")
-        return found_products[:max_items]
-
-    except Exception as e:
-        logger.error(f"Coop scraping failed: {e}")
-        return []
+    logger.info(f"Coop: {len(products)} products from ePaper")
+    return products[:max_items]
 
 
 # ---------------------------------------------------------------------------

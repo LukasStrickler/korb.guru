@@ -131,12 +131,14 @@ def _extract_with_docling(file_path: str) -> str:
         return ""
 
 
-def extract_products_from_file(file_path: str | Path, retailer: str) -> list[dict]:
+def extract_products_from_file(
+    file_path: str | Path, retailer: str, *, skip_ocr: bool = False
+) -> list[dict]:
     """Extract products from a PDF file.
 
     Strategy: try pdfplumber first (fast text extraction for PDFs with
-    embedded text). If pdfplumber finds fewer than 3 products, fall back
-    to Docling OCR (slow but handles scanned/image PDFs).
+    embedded text). If pdfplumber finds fewer than 3 products and skip_ocr
+    is False, fall back to Docling OCR (slow but handles scanned/image PDFs).
     """
     file_path = str(file_path)
 
@@ -144,7 +146,7 @@ def extract_products_from_file(file_path: str | Path, retailer: str) -> list[dic
     text = _extract_with_pdfplumber(file_path)
     products = _parse_products_from_text(text, retailer)
 
-    if len(products) >= 3:
+    if len(products) >= 3 or skip_ocr:
         logger.info(
             f"pdfplumber: {len(products)} products from {Path(file_path).name}"
         )
@@ -170,14 +172,18 @@ def extract_products_from_file(file_path: str | Path, retailer: str) -> list[dic
     return products
 
 
-async def _extract_in_thread(data: bytes, retailer: str, suffix: str) -> list[dict]:
+async def _extract_in_thread(
+    data: bytes, retailer: str, suffix: str, *, skip_ocr: bool = False
+) -> list[dict]:
     """Write data to temp file, run extraction in a thread, then clean up."""
     tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
     try:
         tmp.write(data)
         tmp.flush()
         tmp.close()
-        return await asyncio.to_thread(extract_products_from_file, tmp.name, retailer)
+        return await asyncio.to_thread(
+            extract_products_from_file, tmp.name, retailer, skip_ocr=skip_ocr
+        )
     finally:
         try:
             os.unlink(tmp.name)
@@ -186,11 +192,15 @@ async def _extract_in_thread(data: bytes, retailer: str, suffix: str) -> list[di
 
 
 async def extract_products_from_pdf_bytes(
-    pdf_bytes: bytes, retailer: str, filename: str = "prospekt.pdf"
+    pdf_bytes: bytes,
+    retailer: str,
+    filename: str = "prospekt.pdf",
+    *,
+    skip_ocr: bool = False,
 ) -> list[dict]:
     """Extract products from PDF bytes (downloaded via HTTP)."""
     suffix = Path(filename).suffix or ".pdf"
-    return await _extract_in_thread(pdf_bytes, retailer, suffix)
+    return await _extract_in_thread(pdf_bytes, retailer, suffix, skip_ocr=skip_ocr)
 
 
 async def extract_products_from_image_bytes(

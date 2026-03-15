@@ -109,11 +109,14 @@ async def main():
 
         start_time = time.monotonic()
 
-        # Run all retailers in parallel
-        tasks = [
-            _scrape_retailer(r, max_items, region) for r in retailers
-        ]
-        results = await asyncio.gather(*tasks)
+        # Run scrapers sequentially — Crawlee crawlers share a default
+        # request queue on Apify, so parallel execution causes one crawler
+        # to consume URLs intended for another (e.g. Denner's BS4 crawler
+        # grabs Migros/Coop URLs before their Playwright crawlers start).
+        results = []
+        for retailer in retailers:
+            result = await _scrape_retailer(retailer, max_items, region)
+            results.append(result)
 
         # Push all products and build summary
         summary: dict[str, dict] = {}
