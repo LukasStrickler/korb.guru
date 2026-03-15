@@ -123,7 +123,7 @@ QDRANT_PORT=6333
 QDRANT_MODE=memory
 ```
 
-The client factory in `backend/app/qdrant/client.py` handles switching transparently.
+The client factory in `apps/api/src/qdrant/client.py` handles switching transparently.
 
 ## Embedding Model
 

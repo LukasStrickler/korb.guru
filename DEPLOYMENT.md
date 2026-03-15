@@ -120,14 +120,14 @@ For long-running tasks like:
 
 Recommended: **ARQ** (async Redis queue, lightweight):
 
-1. Add `arq` to `requirements.txt`
-2. Create `backend/app/workers.py` with task definitions
+1. Add `arq` to `apps/api/pyproject.toml`
+2. Create `apps/api/src/workers.py` with task definitions
 3. Add a worker service under `services:` in `docker-compose.yml`:
 
 ```yaml
 worker:
-  build: ./backend
-  command: arq app.workers.WorkerSettings
+  build: ./apps/api
+  command: arq src.workers.WorkerSettings
   env_file: .env
   depends_on:
     - redis
