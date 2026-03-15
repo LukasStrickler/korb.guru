@@ -47,13 +47,16 @@
     "db:logs:qdrant": "docker compose -f compose.yml logs -f qdrant"
   },
   "lint-staged": {
-    "**/*.{js,jsx,ts,tsx,json,md}": [
+    "!(packages/contracts/src/generated)/**/*.{js,jsx,ts,tsx,json,md}": [
       "prettier --write"
     ],
     "apps/mobile/**/*.{js,jsx,ts,tsx}": [
       "eslint --fix"
     ],
-    "packages/**/*.{js,ts,tsx}": [
+    "packages/config/**/*.{js,ts,tsx}": [
+      "eslint --fix"
+    ],
+    "packages/contracts/src/*.{js,ts,tsx}": [
       "eslint --fix"
     ],
     "apps/convex/**/*.{js,ts}": [

@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
- 
+/* eslint-disable */
 import type { GoogleMapsPlace } from './GoogleMapsPlace';
 /**
  * Request body for bulk store ingestion from Google Maps.
