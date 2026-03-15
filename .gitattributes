@@ -1,0 +1,3 @@
+# Force LF for generated files to avoid Windows/Linux diff issues
+packages/contracts/src/generated/** text eol=lf
+apps/api/openapi.json text eol=lf
