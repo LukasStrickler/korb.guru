@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export type { ApifyResource } from './models/ApifyResource';
 export type { AskRequest } from './models/AskRequest';
 export type { AskResponse } from './models/AskResponse';
 export type { AutoRefillRuleRequest } from './models/AutoRefillRuleRequest';

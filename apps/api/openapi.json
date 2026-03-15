@@ -2652,6 +2652,24 @@
   },
   "components": {
     "schemas": {
+      "ApifyResource": {
+        "properties": {
+          "defaultDatasetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultdatasetid"
+          }
+        },
+        "type": "object",
+        "title": "ApifyResource",
+        "description": "Nested resource object from Apify webhook payload."
+      },
       "AskRequest": {
         "properties": {
           "question": {
@@ -4269,6 +4287,16 @@
             "type": "number",
             "title": "Durations",
             "default": 0
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApifyResource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

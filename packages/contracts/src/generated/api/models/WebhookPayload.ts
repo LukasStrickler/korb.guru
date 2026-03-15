@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ApifyResource } from './ApifyResource';
 /**
  * Payload sent by the swiss-grocery-scraper actor after a run.
  */
@@ -11,5 +12,6 @@ export type WebhookPayload = {
     region?: string;
     retailers?: Array<string>;
     durationS?: number;
+    resource?: (ApifyResource | null);
 };
 
