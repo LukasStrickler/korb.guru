@@ -181,15 +181,15 @@ export const fetchExamples = (): Promise<ExampleItem[]> => {
   return apiFetch<ExampleItem[]>("/examples");
 };
 
-/** Response shape for GET /me (placeholder protected endpoint). */
+/** Response shape for GET /api/v1/users/me. */
 export type MeResponse = { user_id: string; message: string };
 
 /** Call the protected /me endpoint. Pass the Clerk token from useAuth().getToken(). */
 export const fetchMe = (token: string): Promise<MeResponse> => {
-  return apiFetchWithAuth<MeResponse>("/me", token);
+  return apiFetchWithAuth<MeResponse>("/api/v1/users/me", token);
 };
 
-/** Response from DELETE /me (account deletion). */
+/** Response from DELETE /api/v1/users/me (account deletion). */
 export type DeleteMeResponse = { ok: boolean };
 
 /**
@@ -197,7 +197,9 @@ export type DeleteMeResponse = { ok: boolean };
  * in production; app then deletes Convex data and signs out.
  */
 export const deleteAccount = (token: string): Promise<DeleteMeResponse> => {
-  return apiFetchWithAuth<DeleteMeResponse>("/me", token, { method: "DELETE" });
+  return apiFetchWithAuth<DeleteMeResponse>("/api/v1/users/me", token, {
+    method: "DELETE",
+  });
 };
 
 export const searchProducts = (
