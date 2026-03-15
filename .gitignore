@@ -182,6 +182,7 @@ htmlcov/
 
 # Docker (local overrides only)
 compose.override.yml
+docker-compose.override.yml
 
 # =============================================================================
 # Misc
@@ -210,4 +211,12 @@ android-service-account.json
 !apps/website/lib/
 !apps/website/lib/*
 !.agents/skills/resolve-pr-comments/scripts/lib/
+!.agents/skills/resolve-pr-comments/scripts/lib/*
+
+# =============================================================================
+# Crawler outputs
+# =============================================================================
+crawler/smartcart/output/
+crawler/apify/output/
+*.snapshot
 !.agents/skills/resolve-pr-comments/scripts/lib/*

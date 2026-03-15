@@ -3,3 +3,12 @@ apps/mobile/.rnstorybook/
 
 # Expo generated env types (do not edit)
 apps/mobile/expo-env.d.ts
+
+# Private hackathon working docs
+hackathon-context/
+
+# Generated API contracts (auto-formatted by contracts:generate, verified by CI git diff)
+packages/contracts/src/generated/
+
+# Claude worktrees (temporary)
+.claude/worktrees/

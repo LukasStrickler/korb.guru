@@ -107,6 +107,13 @@ pnpm build
 
 When adding a feature that spans services, define one canonical owner per entity. See the architecture docs for decision guidance.
 
+## Hackathon Challenges
+
+This project targets two challenges at the GenAI Zurich Hackathon 2026:
+
+- **Apify Challenge** — Live web data scraping with custom Actors. See [docs/actors.md](docs/actors.md)
+- **Qdrant Challenge** — Context Engineering for Agentic RAG. See [docs/qdrant.md](docs/qdrant.md)
+
 ## License
 
 [Business Source License 1.1](LICENSE)

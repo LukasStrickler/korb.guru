@@ -12,7 +12,7 @@ const server = setupServer(
   http.get(`${BASE}/hello`, () => {
     return HttpResponse.json({ message: "Hello from FastAPI" });
   }),
-  http.get(`${BASE}/me`, ({ request }) => {
+  http.get(`${BASE}/api/v1/users/me`, ({ request }) => {
     const auth = request.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) {
       return new HttpResponse(null, { status: 401 });

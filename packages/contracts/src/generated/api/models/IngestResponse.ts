@@ -3,7 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type IngestResponse = {
-  status: string;
-  accepted: number;
-  source: string;
+    status: string;
+    accepted: number;
+    source: string;
 };
+

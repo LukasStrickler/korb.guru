@@ -84,18 +84,44 @@ async def migrated_client(
     _ = app.dependency_overrides.pop(get_db, None)
 
 
+EXPECTED_TABLES = {
+    "alembic_version",
+    "example",
+    "users",
+    "households",
+    "recipes",
+    "recipe_ingredients",
+    "swipe_actions",
+    "meal_plans",
+    "grocery_lists",
+    "grocery_items",
+    "budget_entries",
+    "budget_settings",
+    "products",
+    "stores",
+    "messages",
+    "notifications",
+    "meal_polls",
+    "poll_votes",
+}
+
+
 @pytest.mark.asyncio
-async def test_alembic_head_keeps_examples_route_schema(
+async def test_alembic_head_creates_all_domain_tables(
     migrated_async_engine: AsyncEngine,
     migrated_client: AsyncClient,
 ) -> None:
+    """After alembic upgrade head, all 16 domain tables + example exist."""
     async with migrated_async_engine.connect() as conn:
-        table_names = await conn.run_sync(
-            lambda sync_conn: inspect(sync_conn).get_table_names()
+        table_names = set(
+            await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
         )
 
-    assert "example" in table_names
+    assert EXPECTED_TABLES.issubset(table_names), (
+        f"Missing tables: {EXPECTED_TABLES - table_names}"
+    )
 
+    # Legacy /examples route still works
     response = await migrated_client.get("/examples")
 
     assert response.status_code == 200

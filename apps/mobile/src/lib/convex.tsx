@@ -22,7 +22,7 @@ function getConvexUrl(): string {
 const STORYBOOK_PLACEHOLDER = "https://storybook-placeholder.convex.cloud";
 
 function getConvexUrlOrPlaceholder(): string {
-  if (process.env.EXPO_PUBLIC_ENVIRONMENT === "storybook") {
+  if (process.env["EXPO_PUBLIC_ENVIRONMENT"] === "storybook") {
     return STORYBOOK_PLACEHOLDER;
   }
   return getConvexUrl();

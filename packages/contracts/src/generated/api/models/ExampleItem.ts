@@ -6,7 +6,8 @@
  * One row from the example table.
  */
 export type ExampleItem = {
-  id: number;
-  name: string;
-  created_at: string;
+    id: number;
+    name: string;
+    created_at: string;
 };
+

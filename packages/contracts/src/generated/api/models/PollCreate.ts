@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UserCreate = {
-  email: string;
-  name?: string | null;
+export type PollCreate = {
+    recipe_id: string;
 };
+
