@@ -20,6 +20,30 @@ PRICE_MIN = 0.10
 PRICE_MAX = 500.0
 
 
+# Labels/metadata that appear on flyer pages but are not product names
+_JUNK_PATTERNS = re.compile(
+    r"^("
+    r"\d{1,3}\s*%"          # "24%", "50%"
+    r"|ab\s"                # "ab 19.3."
+    r"|bis\s"               # "bis 25.3."
+    r"|gültig\s"            # "gültig ab..."
+    r"|herkunft"            # "Herkunft: ..."
+    r"|gewicht"             # "Gewicht: ..."
+    r"|inhalt"              # "Inhalt: ..."
+    r"|je\s"                # "je Stück"
+    r"|pro\s"               # "pro 100g"
+    r"|\d+\s*(?:g|kg|ml|l|cl|dl|stk|st)\b"  # "100 g", "500 ml"
+    r"|\d+\s*(?:g|kg|ml|l)\s*="  # "100 g ="
+    r"|seite\s*\d"          # "Seite 1"
+    r"|www\."               # URLs
+    r"|lidl|aldi|coop|migros|denner"  # retailer names
+    r"|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag"
+    r"|aktion|angebot|rabatt|sparen|gratis|neu\s*$"
+    r")",
+    re.IGNORECASE,
+)
+
+
 def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
     """Parse products with prices from extracted text (pdfplumber or Docling)."""
     products = []
@@ -42,7 +66,14 @@ def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
         name = re.sub(r"\s+", " ", name)
         name = re.sub(r"[*_#|>-]+", "", name).strip()
 
+        # Filter out junk names
         if not name or len(name) < 3 or name.lower() in seen:
+            continue
+        if _JUNK_PATTERNS.match(name):
+            continue
+        # Skip names that are mostly numbers/punctuation
+        alpha_chars = sum(1 for c in name if c.isalpha())
+        if alpha_chars < 3:
             continue
 
         seen.add(name.lower())
