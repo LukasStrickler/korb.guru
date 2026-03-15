@@ -403,21 +403,20 @@ async def scrape_denner(max_items: int = 200, region: str = "zurich") -> list[di
 
 
 # ---------------------------------------------------------------------------
-# Lidl — PDF download via Leaflets API → Docling extraction
+# Lidl — Leaflets API (product names) + PDF download for prices
 # ---------------------------------------------------------------------------
 async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Lidl via PDF download from the Leaflets API.
+    """Scrape Lidl via the Leaflets API with PDF price enrichment.
 
     Strategy:
     1. Fetch flyer listing page to discover current flyer slugs
-    2. Query Leaflets API for each slug → get pdfUrl
-    3. Download PDF → extract products with Docling OCR
-    4. Fallback: use product titles from the API if PDF extraction fails
+    2. Query Leaflets API for each slug → get product names + pdfUrl
+    3. Download PDF → try to extract prices via pdfplumber
+    4. Merge: API provides accurate names, PDF provides prices
     """
     products: list[dict] = []
 
     async with httpx.AsyncClient(headers=HEADERS, timeout=120.0) as client:
-        # Step 1: Find current flyer slugs from the prospekte page
         resp = await client.get(
             "https://www.lidl.ch/c/de-CH/werbeprospekte-als-pdf/s10019683"
         )
@@ -426,7 +425,6 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
             return []
 
         slugs = re.findall(r"/prospekt/([^/]+)/ar/", resp.text)
-        # Deduplicate while preserving order
         seen_slugs: list[str] = []
         for s in slugs:
             if s not in seen_slugs:
@@ -439,7 +437,7 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
 
         logger.info(f"Lidl: found {len(slugs)} flyer slugs: {slugs[:5]}")
 
-        # Step 2: For each slug, get PDF URL from Leaflets API and download
+        seen: set[str] = set()
         for slug in slugs[:3]:
             try:
                 api_url = (
@@ -452,28 +450,29 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
 
                 data = api_resp.json()
                 flyer = data.get("flyer", data)
+
+                # Try PDF extraction for prices
+                pdf_prices: dict[str, float] = {}
                 pdf_url = flyer.get("pdfUrl")
-
                 if pdf_url:
-                    # Step 3: Download PDF and extract with Docling
-                    logger.info(f"Lidl: downloading PDF for '{slug}'")
-                    pdf_resp = await client.get(pdf_url)
-                    if pdf_resp.is_success and len(pdf_resp.content) > 1000:
-                        pdf_products = await extract_products_from_pdf_bytes(
-                            pdf_resp.content, "lidl", f"lidl-{slug}.pdf"
-                        )
-                        if pdf_products:
-                            logger.info(
-                                f"Lidl: {len(pdf_products)} products from "
-                                f"'{slug}' PDF ({len(pdf_resp.content)} bytes)"
+                    try:
+                        logger.info(f"Lidl: downloading PDF for '{slug}'")
+                        pdf_resp = await client.get(pdf_url)
+                        if pdf_resp.is_success and len(pdf_resp.content) > 1000:
+                            pdf_products = await extract_products_from_pdf_bytes(
+                                pdf_resp.content, "lidl", f"lidl-{slug}.pdf"
                             )
-                            products.extend(pdf_products)
-                            continue
+                            for pp in pdf_products:
+                                if pp.get("price") and pp.get("name"):
+                                    pdf_prices[pp["name"].lower()] = pp["price"]
+                            logger.info(
+                                f"Lidl: extracted {len(pdf_prices)} prices from PDF"
+                            )
+                    except Exception as e:
+                        logger.warning(f"Lidl PDF download failed: {e}")
 
-                # Fallback: extract product names from API (no prices)
-                logger.info(f"Lidl: PDF extraction failed for '{slug}', using API fallback")
+                # Extract product names from API (accurate names)
                 pages = flyer.get("pages", [])
-                seen: set[str] = set()
                 for page in pages:
                     for link in page.get("links", []):
                         if link.get("displayType") != "product":
@@ -482,17 +481,26 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
                         if not title or len(title) < 3 or title.lower() in seen:
                             continue
                         seen.add(title.lower())
+
+                        # Try to match price from PDF extraction
+                        price = pdf_prices.get(title.lower())
+
                         products.append(
                             {
                                 "retailer": "lidl",
                                 "name": title,
-                                "price": None,
+                                "price": price,
                                 "discount_pct": None,
                                 "image_url": None,
                                 "category": "flyer",
                                 "region": "national",
                             }
                         )
+
+                logger.info(
+                    f"Lidl flyer '{slug}': {sum(1 for p in products if p.get('price'))} "
+                    f"with prices out of {len(products)} products"
+                )
 
             except Exception as e:
                 logger.warning(f"Lidl flyer '{slug}' failed: {e}")
