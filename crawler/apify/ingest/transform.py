@@ -1,10 +1,168 @@
 """Normalize product data from Apify Actor output into a common format."""
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 PRICE_MIN = 0.10
 PRICE_MAX = 500.0
+
+# Junk product names that should be filtered out during normalization
+_JUNK_NAME_RE = re.compile(
+    r"^("
+    r"\d{1,3}\s*%"
+    r"|ab\s|bis\s|gültig\s"
+    r"|herkunft|gewicht|inhalt"
+    r"|je\s|pro\s"
+    r"|\d+\s*(?:g|kg|ml|l|cl|dl|stk|st)\b"
+    r"|seite\s*\d"
+    r"|www\."
+    r"|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag"
+    r"|aktion\s*$|angebot\s*$|rabatt\s*$|sparen\s*$|gratis\s*$|neu\s*$"
+    r"|\d+\s*(?:tage|nächte)"
+    r"|buchbar|reise|flug|hotel|kreuzfahrt|wellness"
+    r"|termine:|voucher|gutschein"
+    r"|farbe|grösse|sortiment"
+    r"|preishighlight|preiserhebung|preisvergleich"
+    r"|.*z\.\s*B\.\s*$"
+    r"|(?:mo|di|mi|do|fr|sa|so)\s*[-–]\s*(?:mo|di|mi|do|fr|sa|so)"
+    r"|leistung|eigene\s+erhebung"
+    r")",
+    re.IGNORECASE,
+)
+
+# Category headers that aren't real products
+_CATEGORY_HEADERS = frozenset({
+    "fleisch", "fisch", "gemüse", "obst", "früchte", "backwaren",
+    "getränke", "molkerei", "käse", "wurst", "brot", "snacks",
+    "süsswaren", "tiefkühl", "haushalt", "pflege", "beauty",
+    "damen", "herren", "kinder", "baby", "sport", "garten",
+    "qualität", "licht", "schweizer", "leistung", "farbe",
+    "sortiment", "aktion", "angebot", "highlight",
+})
+
+
+_NON_GROCERY_WORDS = frozenset({
+    "reise", "hotel", "flug", "kreuzfahrt", "nächte", "tage",
+    "kabine", "innenkabine", "dz", "ez", "economy", "class",
+    "buchbar", "voucher", "gutschein", "termine",
+    "damen", "herren", "kinder", "grösse",
+    "velosattel", "velozubehör", "kulturtopf",
+    "licht", "lampe", "led", "leuchte",
+    "packung", "stück", "erhebung",
+    "nordlicht", "wellness", "versprechen",
+    "plüsch", "wecker", "geschirrtücher", "fitnessbereich",
+})
+
+# Regex for concatenated text (camelCase / digit-letter transitions)
+_CONCAT_PATTERN = re.compile(r"[a-zäöü][A-ZÄÖÜ]")
+_DIGIT_ALPHA = re.compile(r"\d[a-zA-ZäöüÄÖÜ]")
+
+# Non-grocery product keywords
+_NON_GROCERY_PRODUCT_RE = re.compile(
+    r"\b(?:cien|beauty|kosmetik|pinsel|manikure|pedikure|multigroomer|"
+    r"personenwaage|schmucktablett|barttrimmer|bürste|bettwäsche|"
+    r"mikrofaser|satin|gardine|vorhang|laptop|tablet|smartphone|"
+    r"bluetooth|kopfhörer|plüsch|wecker|geschirrtücher)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_junk_name(name: str) -> bool:
+    """Check if a product name is junk (metadata, category header, etc.)."""
+    if not name or len(name) < 3:
+        return True
+    if _JUNK_NAME_RE.match(name):
+        return True
+    if name.lower().strip() in _CATEGORY_HEADERS:
+        return True
+    # Single or double all-caps words are category headers
+    if name.isupper() and len(name.split()) <= 3:
+        return True
+    # Fewer than 3 alphabetic characters
+    if sum(1 for c in name if c.isalpha()) < 3:
+        return True
+    # Doubled characters (OCR artefact)
+    if len(name) >= 10:
+        pairs = sum(1 for i in range(0, len(name) - 1, 2) if name[i] == name[i + 1])
+        total_pairs = len(name) // 2
+        if total_pairs > 0 and pairs / total_pairs > 0.6:
+            return True
+    # Repeated words (OCR artefact: "SCHWEIZER SCHWEIZER 250 g")
+    # Only flag if consecutive words repeat (not brand names like "Beyond Meat Beyond")
+    words = name.split()
+    consecutive_repeats = sum(
+        1 for i in range(len(words) - 1)
+        if words[i].lower() == words[i + 1].lower() and len(words[i]) > 2
+    )
+    if consecutive_repeats >= 1:
+        return True
+    # Non-grocery words (≥2 matches = skip)
+    name_words = set(name.lower().split())
+    if len(name_words & _NON_GROCERY_WORDS) >= 2:
+        return True
+    # Concatenated text (camelCase transitions indicate missing spaces)
+    camel_count = len(_CONCAT_PATTERN.findall(name))
+    digit_alpha_count = len(_DIGIT_ALPHA.findall(name))
+    if camel_count + digit_alpha_count >= 2:
+        return True
+    # Names starting with bullet points + travel/promo content
+    if name.startswith("•") or name.startswith("·"):
+        return True
+    # "auch in" type fragments
+    if name.lower().startswith("auch in") or name.lower().startswith("oder "):
+        return True
+    # Color-only names
+    if name.lower().strip() in {"schwarz", "weiss", "blau", "rot", "grün", "gelb", "braun", "rosa", "grau"}:
+        return True
+    # Non-grocery products
+    if _NON_GROCERY_PRODUCT_RE.search(name):
+        return True
+    # Names containing "Wert:" or similar metadata/fragments
+    lower = name.lower()
+    if any(w in lower for w in ("wert:", "normalpreis", "statt", "erwartet.", "preis")):
+        if len(name) < 20:  # Short fragments containing these words
+            return True
+    # Date patterns like "26.2.bis18." or "Nur von Do., 26.2."
+    if re.search(r"\d{1,2}\.\d{1,2}\.(?:bis|ab)", name):
+        return True
+    if re.match(r"(?:Nur\s+von|Gültig|Ab|Bis)\b", name, re.IGNORECASE):
+        return True
+    # Broken text fragments (short with parentheses/symbols)
+    if len(name) < 25 and re.search(r"[(){}]", name):
+        return True
+    # Names starting with lowercase (broken sentence fragments)
+    if name[0].islower() and len(name.split()) >= 2:
+        return True
+    # Names with embedded period-number patterns (travel itineraries)
+    if re.search(r"\d+\.\s*[-–]\s*\d+\.\s*Tag", name):
+        return True
+    # Names containing "Besichtigung", "Abflug", etc. (travel content)
+    if re.search(r"(?:Besichtigung|Abflug|Badeaufenthalt|Kreuzfahrt|Tempel)", name, re.IGNORECASE):
+        return True
+    # Names with colons followed by concatenated words (PDF extraction artefacts)
+    if ":" in name and len(name.split()) <= 2 and len(name) < 30:
+        return True
+    # Concatenated abbreviations like "6202.3.4sib." or "z.B.am6."
+    if re.search(r"\d{3,}\.\d+\.\d+", name):
+        return True
+    if re.match(r"[a-z.]+\d", name) and len(name) < 15:
+        return True
+    # "ab2Stück" type concatenations
+    if re.match(r"ab\d", name, re.IGNORECASE):
+        return True
+    # "z.B." starting names
+    if name.lower().startswith("z.b."):
+        return True
+    # Long single words without spaces are concatenated text (>30 chars)
+    # German compound words can be 25+ chars (Gelbflossenthunfischfilets)
+    longest_word = max((len(w) for w in name.split()), default=0)
+    if longest_word > 30:
+        return True
+    # "imDZ", "Gültigbis" — short concatenated words starting lowercase
+    if re.match(r"[a-zäöü]+[A-ZÄÖÜ]", name) and len(name) < 20:
+        return True
+    return False
 
 
 def normalize_items(items: list[dict], source: str) -> list[dict]:
@@ -42,9 +200,10 @@ def normalize_items(items: list[dict], source: str) -> list[dict]:
                     )
 
             name = product["name"].strip()
-            if name and len(name) >= 2:
-                product["name"] = name
-                normalized.append(product)
+            if _is_junk_name(name):
+                continue
+            product["name"] = name
+            normalized.append(product)
         except Exception as e:
             logger.warning(f"Failed to normalize item: {e}")
 
