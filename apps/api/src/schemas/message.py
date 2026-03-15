@@ -14,7 +14,7 @@ class MessageCreate(BaseModel):
     def reject_blank(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("Message text must not be blank")
-        return v
+        return v.strip()
 
 
 class MessageResponse(BaseModel):

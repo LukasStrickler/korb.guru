@@ -56,8 +56,9 @@ def init_collections() -> None:
     ]:
         try:
             client.create_payload_index("products", field, field_schema=schema)
-        except Exception:
-            pass  # Index may already exist
+        except Exception as e:
+            if "already exists" not in str(e).lower():
+                raise
     logger.info("'products' collection ready")
 
     # 2. Recipes — dense vector search
@@ -76,8 +77,9 @@ def init_collections() -> None:
     ]:
         try:
             client.create_payload_index("recipes", field, field_schema=schema)
-        except Exception:
-            pass  # Index may already exist
+        except Exception as e:
+            if "already exists" not in str(e).lower():
+                raise
     logger.info("'recipes' collection ready")
 
     # 3. User preferences — Discovery API
@@ -95,8 +97,9 @@ def init_collections() -> None:
                 field,
                 field_schema=models.PayloadSchemaType.KEYWORD,
             )
-        except Exception:
-            pass  # Index may already exist
+        except Exception as e:
+            if "already exists" not in str(e).lower():
+                raise
     logger.info("'user_preferences' collection ready")
 
     logger.info("All Qdrant collections initialized")

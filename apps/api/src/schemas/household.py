@@ -12,7 +12,7 @@ class HouseholdCreate(BaseModel):
 class HouseholdJoin(BaseModel):
     invite_code: str = Field(min_length=1, max_length=50)
 
-    @field_validator("invite_code")
+    @field_validator("invite_code", mode="before")
     @classmethod
     def strip_invite_code(cls, v: str) -> str:
         return v.strip()

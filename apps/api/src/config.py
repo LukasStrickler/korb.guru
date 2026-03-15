@@ -76,6 +76,13 @@ class Settings(BaseSettings):
         # OpenAI: only text-embedding-3* models support the `dimensions` param
         if self.embedding_dimensions is not None:
             if self.embedding_model.startswith("text-embedding-3"):
+                native = OPENAI_EMBEDDING_DIMENSIONS.get(self.embedding_model)
+                if native and not (1 <= self.embedding_dimensions <= native):
+                    raise ValueError(
+                        f"embedding_dimensions must be "
+                        f"between 1 and {native}, got "
+                        f"{self.embedding_dimensions}"
+                    )
                 return self.embedding_dimensions
             _logger.warning(
                 "embedding_dimensions is set but model %r does not support "

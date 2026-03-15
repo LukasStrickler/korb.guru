@@ -4,7 +4,6 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
@@ -56,14 +55,8 @@ async def join_household(
         raise HTTPException(status_code=404, detail="Invalid invite code")
     user.household_id = household.id
     session.add(user)
-    try:
-        await session.commit()
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Household assignment conflict — retry",
-        )
+    # Concurrent joins are a known limitation for hackathon
+    await session.commit()
     await session.refresh(user)
     return household
 

@@ -127,17 +127,15 @@ async def _process_records(
             )
         )
 
-    # --- Postgres upsert + Qdrant upsert in same transaction scope ---
-    # Qdrant upsert runs inside the session.begin() block so that if it
-    # fails, the Postgres transaction is rolled back automatically.
+    # --- Postgres upsert first, then Qdrant (eventual consistency) ---
     session_factory = get_session_local()
     try:
         async with session_factory() as session:
             async with session.begin():
                 for rec in records:
-                    product_id = _deterministic_uuid(rec.retailer, rec.name)
+                    pid = _deterministic_uuid(rec.retailer, rec.name)
                     stmt = pg_insert(Product).values(
-                        id=product_id,
+                        id=pid,
                         retailer=rec.retailer,
                         name=rec.name,
                         description=rec.description,
@@ -155,8 +153,8 @@ async def _process_records(
                         set_={
                             "description": stmt.excluded.description,
                             "price": stmt.excluded.price,
-                            "original_price": stmt.excluded.original_price,
-                            "discount_pct": stmt.excluded.discount_pct,
+                            "original_price": (stmt.excluded.original_price),
+                            "discount_pct": (stmt.excluded.discount_pct),
                             "category": stmt.excluded.category,
                             "image_url": stmt.excluded.image_url,
                             "valid_from": stmt.excluded.valid_from,
@@ -165,18 +163,30 @@ async def _process_records(
                         },
                     )
                     await session.execute(stmt)
-
-                # Qdrant upsert BEFORE Postgres commit (begin block commits on exit)
-                client = get_qdrant_client()
-                await asyncio.to_thread(
-                    client.upsert, collection_name=QDRANT_COLLECTION, points=points
-                )
-                logger.info("Qdrant upsert complete for %d points", len(points))
-
-        logger.info("Postgres upsert complete for %d records", len(records))
+        logger.info(
+            "Postgres upsert complete for %d records",
+            len(records),
+        )
     except Exception:
-        logger.exception("Ingest failed (Postgres rolled back)")
+        logger.exception("Ingest failed (Postgres)")
         raise
+
+    # Qdrant upsert runs after Postgres commit. If it fails,
+    # Postgres keeps its data (eventual consistency is fine).
+    try:
+        client = get_qdrant_client()
+        await asyncio.to_thread(
+            client.upsert,
+            collection_name=QDRANT_COLLECTION,
+            points=points,
+        )
+        logger.info("Qdrant upsert complete for %d points", len(points))
+    except Exception:
+        logger.warning(
+            "Qdrant upsert failed for %d points; Postgres data was committed",
+            len(points),
+            exc_info=True,
+        )
 
 
 @router.post("/ingest", response_model=IngestResponse, status_code=202)

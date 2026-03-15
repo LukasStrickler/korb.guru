@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-COPY apps/ apps/
+COPY app/ app/
 RUN uv pip install --system --no-cache .
 
 # ---------- runtime stage ----------

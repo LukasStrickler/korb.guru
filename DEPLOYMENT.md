@@ -76,7 +76,7 @@ Coolify handles HTTPS automatically via Traefik:
 For the frontend, set `CORS_ORIGINS` to your actual frontend domain:
 
 ```
-CORS_ORIGINS=https://app.korb.guru
+CORS_ORIGINS=["https://app.korb.guru"]
 ```
 
 ---
@@ -203,7 +203,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install uv && uv pip install --system --no-cache ./backend
+      - run: pip install uv && uv pip install --system --no-cache ./apps/api
       - run: cd backend && python -m pytest
 
   deploy:
