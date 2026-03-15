@@ -6,36 +6,40 @@
     "retailers": {
       "title": "Retailers",
       "type": "array",
-      "description": "Which retailers to scrape",
+      "description": "Which retailers to scrape (aldi, migros, coop, denner, lidl)",
       "items": {
-        "type": "string",
-        "enum": ["aldi", "migros", "coop", "denner", "lidl"]
+        "type": "string"
       },
-      "default": ["aldi", "migros", "coop", "denner", "lidl"]
+      "default": ["aldi", "migros", "coop", "denner", "lidl"],
+      "editor": "stringList"
     },
     "region": {
       "title": "Region",
       "type": "string",
-      "description": "Swiss region for region-specific offers and flyers",
+      "description": "Swiss region for region-specific offers",
       "enum": ["zurich", "bern", "basel"],
-      "default": "zurich"
+      "default": "zurich",
+      "editor": "select"
     },
     "maxItems": {
       "title": "Max Items",
       "type": "integer",
-      "description": "Maximum number of items to scrape per retailer",
-      "default": 200
+      "description": "Maximum items to scrape per retailer",
+      "default": 200,
+      "editor": "number"
     },
     "webhookUrl": {
       "title": "Webhook URL",
       "type": "string",
-      "description": "URL to POST a notification to after scraping completes (e.g., your API's /ingest endpoint)"
+      "description": "URL to POST notification after scraping completes",
+      "editor": "textfield"
     },
     "webhookApiKey": {
       "title": "Webhook API Key",
       "type": "string",
-      "description": "API key to include in the webhook Authorization header",
-      "isSecret": true
+      "description": "API key for webhook Authorization header",
+      "isSecret": true,
+      "editor": "textfield"
     }
   },
   "required": ["retailers"]

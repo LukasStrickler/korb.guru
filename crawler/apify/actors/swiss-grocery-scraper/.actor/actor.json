@@ -2,7 +2,7 @@
   "actorSpecification": 1,
   "name": "swiss-grocery-scraper",
   "title": "Swiss Grocery Scraper",
-  "description": "Scrapes weekly product offers and prices from all five major Swiss grocery retailers (Aldi, Migros, Coop, Denner, Lidl) across Swiss regions. Uses Crawlee for web scraping and Docling for PDF prospekt extraction. Supports parallel scraping, region filtering, webhook notifications, and scheduled runs. Outputs structured product data including prices, discounts, categories, and validity dates.",
+  "description": "Scrapes weekly offers from Swiss grocery retailers (Aldi, Migros, Coop, Denner, Lidl). Uses Crawlee + Docling for web and PDF extraction. Outputs structured product data with prices, discounts, and categories.",
   "version": "0.4",
   "buildTag": "latest",
   "dockerfile": "./Dockerfile"
