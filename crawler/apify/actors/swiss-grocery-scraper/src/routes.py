@@ -30,6 +30,16 @@ PRICE_RE = re.compile(r"(\d+[.,]\d{2})")
 PRICE_MIN = 0.10
 PRICE_MAX = 500.0
 
+# Non-grocery keywords to filter out from product names (beauty, electronics, etc.)
+_NON_GROCERY_KEYWORDS = re.compile(
+    r"\b(?:cien|beauty|kosmetik|pinsel|manik[uü]re|pedik[uü]re|multigroomer|"
+    r"personenwaage|schmucktablett|barttrimmer|b[uü]rste|"
+    r"velosattel|velozubeh[oö]r|kulturtopf|"
+    r"laptop|tablet|smartphone|kopfh[oö]rer|bluetooth|"
+    r"bettwäsche|duvet|kissen|gardine|vorhang)\b",
+    re.IGNORECASE,
+)
+
 
 def _parse_price(text: str) -> float | None:
     """Extract and validate price from text."""
@@ -480,8 +490,38 @@ async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict
                             continue
                         seen.add(title.lower())
 
-                        # Try to match price from PDF extraction
+                        # Try to match price from PDF extraction:
+                        # 1. Exact match
+                        # 2. Substring match (PDF name contains API name)
+                        # 3. First-word match (first significant word)
                         price = pdf_prices.get(title.lower())
+                        if price is None:
+                            title_l = title.lower()
+                            # Substring: check if any PDF name contains this title
+                            for pdf_name, pdf_price in pdf_prices.items():
+                                if title_l in pdf_name or pdf_name in title_l:
+                                    price = pdf_price
+                                    break
+                        if price is None:
+                            # Word overlap: match if ≥2 significant words match
+                            title_words = {
+                                w for w in title.lower().split()
+                                if len(w) > 2
+                            }
+                            if len(title_words) >= 2:
+                                for pdf_name, pdf_price in pdf_prices.items():
+                                    pdf_words = {
+                                        w for w in pdf_name.split()
+                                        if len(w) > 2
+                                    }
+                                    overlap = title_words & pdf_words
+                                    if len(overlap) >= 2:
+                                        price = pdf_price
+                                        break
+
+                        # Skip non-grocery items (beauty, electronics, etc.)
+                        if _NON_GROCERY_KEYWORDS.search(title):
+                            continue
 
                         products.append(
                             {

@@ -41,6 +41,7 @@ _JUNK_PATTERNS = re.compile(
     r"|aktion|angebot|rabatt|sparen|gratis|neu\s*$"
     # Non-grocery content (travel, fashion, household, etc.)
     r"|(?:tage|nächte),?\s*(?:dz|ez|innenkabine)"  # travel offers
+    r"|\d+\s*(?:tage|nächte)"  # "14 Tage", "2 Nächte"
     r"|buchbar|reise|flug|hotel|kreuzfahrt|wellness"
     r"|termine:|voucher|gutschein"
     r"|(?:damen|herren|kinder)\s*$"  # clothing category headers
@@ -53,6 +54,12 @@ _JUNK_PATTERNS = re.compile(
     r"|im\s+\d+cm"           # "Im 14cmKulturtopf"
     r"|kulturtopf|velosattel|velozubehör"
     r"|z\.\s*B\.\s*$"        # "z. B." alone
+    r"|.*z\.\s*B\.\s*$"      # anything ending with "z. B."
+    r"|preiserhebung|preisvergleich"
+    r"|oder\s+gültig"        # "ODER Gültig vom..."
+    r"|legend\s|blue\s*box"  # non-food product names
+    r"|pro\s+packung"        # "pro Packung" metadata
+    r"|.*frühstück.*z\.\s*B" # travel breakfast offers
     r")",
     re.IGNORECASE,
 )
@@ -64,8 +71,64 @@ _NON_GROCERY_WORDS = frozenset({
     "buchbar", "voucher", "gutschein", "termine",
     "damen", "herren", "kinder", "grösse",
     "velosattel", "velozubehör", "kulturtopf",
-    "licht", "lampe", "led",
+    "licht", "lampe", "led", "leuchte",
+    "packung", "stück", "erhebung",
 })
+
+# Single uppercase words that are category headers, not products
+_CATEGORY_HEADERS = frozenset({
+    "fleisch", "fisch", "gemüse", "obst", "früchte", "backwaren",
+    "getränke", "molkerei", "käse", "wurst", "brot", "snacks",
+    "süsswaren", "tiefkühl", "haushalt", "pflege", "beauty",
+    "damen", "herren", "kinder", "baby", "sport", "garten",
+    "qualität", "licht", "schweizer", "leistung", "farbe",
+    "sortiment", "aktion", "angebot", "highlight", "woche",
+    "favorit", "klassiker", "neuheit", "tipp", "top", "hit",
+})
+
+
+def _fix_doubled_chars(text: str) -> str:
+    """Fix pdfplumber doubled-character artefact from overlapping text layers.
+
+    Example: "FFrrhhlliinnggssggeeffüühhllee" → "Frühlingsgefühle"
+    Detects if most consecutive character pairs are duplicates and deduplicates.
+    """
+    if len(text) < 6:
+        return text
+
+    # Check if this looks like doubled text (>60% of char pairs are duplicates)
+    pairs_doubled = sum(
+        1 for i in range(0, len(text) - 1, 2)
+        if text[i] == text[i + 1]
+    )
+    total_pairs = len(text) // 2
+    if total_pairs > 0 and pairs_doubled / total_pairs > 0.6:
+        # Take every other character
+        return text[::2]
+    return text
+
+
+def _clean_concatenated_text(text: str) -> str:
+    """Fix concatenated words from PDF extraction missing spaces.
+
+    Example: "2ScheibenToaster,7Bräunungsstufen," → likely junk, skip
+    Example: "AmAbendAbflugmitEmiratesnachDubai." → travel junk
+    """
+    # Count transitions from lowercase to uppercase (camelCase = missing spaces)
+    transitions = sum(
+        1 for i in range(1, len(text))
+        if text[i - 1].islower() and text[i].isupper()
+    )
+    # Also count digit-to-letter transitions (e.g. "2Scheiben")
+    digit_transitions = sum(
+        1 for i in range(1, len(text))
+        if text[i - 1].isdigit() and text[i].isalpha()
+    )
+    total_transitions = transitions + digit_transitions
+    # If many transitions, it's concatenated garbage
+    if total_transitions >= 3:
+        return ""  # Signal to skip
+    return text
 
 
 def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
@@ -78,6 +141,9 @@ def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
         if not line or line.startswith("#") or line.startswith("|") or len(line) < 5:
             continue
 
+        # Fix doubled characters from overlapping PDF text layers
+        line = _fix_doubled_chars(line)
+
         price_match = PRICE_RE.search(line)
         if not price_match:
             continue
@@ -89,6 +155,12 @@ def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
         name = line[:price_match.start()].strip()
         name = re.sub(r"\s+", " ", name)
         name = re.sub(r"[*_#|>-]+", "", name).strip()
+
+        # Fix concatenated words (missing spaces in PDF)
+        cleaned = _clean_concatenated_text(name)
+        if not cleaned:
+            continue
+        name = cleaned
 
         # Filter out junk names
         if not name or len(name) < 3 or name.lower() in seen:
@@ -105,6 +177,13 @@ def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
             continue
         # Skip single all-caps words that are category headers
         if name.isupper() and len(name.split()) <= 2:
+            continue
+        # Skip known category header words (case-insensitive)
+        if name.lower().strip() in _CATEGORY_HEADERS:
+            continue
+        # Skip names with repeated words (OCR artefact: "SCHWEIZER SCHWEIZER")
+        words = name.split()
+        if len(words) >= 2 and len(set(w.lower() for w in words)) < len(words) * 0.5:
             continue
 
         seen.add(name.lower())
