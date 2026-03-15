@@ -1,16 +1,21 @@
 """
 Request handlers for each Swiss retailer.
-Uses Crawlee for web scraping and Docling for PDF extraction.
-Issuu publications are downloaded as page images and processed via Docling OCR.
+
+Scraping strategies (verified March 2026):
+- Denner: BeautifulSoup on SSR HTML (.product-item selectors)
+- Coop:   Playwright on /de/aktionen/aktuelle-aktionen/c/m_1011 (a.productTile)
+- Migros: Playwright on /de/offers/home (article[mo-basic-product-card])
+- Lidl:   Leaflets API (endpoints.leaflets.schwarz) + product page HTML
+- Aldi:   PDF download + Docling OCR (fallback)
 """
-import asyncio
+
 import logging
 import re
 from datetime import date, timedelta
 
 import httpx
 
-from src.pdf_extract import extract_products_from_pdf_bytes, extract_products_from_image_bytes
+from src.pdf_extract import extract_products_from_pdf_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +28,6 @@ PRICE_RE = re.compile(r"(\d+[.,]\d{2})")
 PRICE_MIN = 0.10
 PRICE_MAX = 500.0
 
-# Issuu page image URL pattern — each page is available as a JPEG
-ISSUU_IMAGE_URL = "https://image.isu.pub/{username}/{slug}/jpg/page_{page}.jpg"
-ISSUU_MAX_PAGES = 16  # cap page downloads per publication
-
 
 def _parse_price(text: str) -> float | None:
     """Extract and validate price from text."""
@@ -38,56 +39,14 @@ def _parse_price(text: str) -> float | None:
     return None
 
 
-async def _scrape_issuu_publication(
-    username: str, slug: str, retailer: str, max_pages: int = ISSUU_MAX_PAGES
-) -> list[dict]:
-    """Download Issuu publication page images and extract products via Docling.
-
-    Issuu hosts each page as a JPEG at a predictable URL pattern.
-    We download pages sequentially until we get a 404 or hit max_pages,
-    then run Docling OCR on each image to extract product names and prices.
-    """
-    products = []
-
-    async with httpx.AsyncClient(headers=HEADERS, timeout=60.0) as client:
-        # First verify the publication exists
-        pub_url = f"https://issuu.com/{username}/docs/{slug}"
-        try:
-            head = await client.head(pub_url, follow_redirects=True)
-            if head.status_code >= 400:
-                logger.info(f"Issuu publication not found: {pub_url}")
-                return []
-        except Exception:
-            logger.warning(f"Could not reach Issuu: {pub_url}")
-            return []
-
-        logger.info(f"Downloading Issuu pages: {username}/{slug}")
-
-        for page_num in range(1, max_pages + 1):
-            img_url = ISSUU_IMAGE_URL.format(
-                username=username, slug=slug, page=page_num
-            )
-            try:
-                resp = await client.get(img_url)
-                if resp.status_code == 404:
-                    logger.info(f"  Page {page_num}: 404 — end of publication")
-                    break
-                if not resp.is_success:
-                    continue
-
-                page_products = await extract_products_from_image_bytes(
-                    resp.content, retailer, f"page_{page_num}.jpg"
-                )
-                products.extend(page_products)
-                logger.info(f"  Page {page_num}: {len(page_products)} products")
-
-            except Exception as e:
-                logger.warning(f"  Page {page_num} failed: {e}")
-
-            await asyncio.sleep(1.5)  # Rate limit Issuu page downloads
-
-    logger.info(f"Issuu {username}/{slug}: {len(products)} products total")
-    return products
+def _parse_discount(text: str) -> float | None:
+    """Extract discount percentage from text like '38%', '½ PREIS', '50% ab 2'."""
+    if not text:
+        return None
+    if "½" in text or "1/2" in text:
+        return 50.0
+    m = re.search(r"(\d{1,2})\s*%", text)
+    return float(m.group(1)) if m else None
 
 
 # ---------------------------------------------------------------------------
@@ -97,45 +56,43 @@ async def scrape_aldi(max_items: int = 200, region: str = "zurich") -> list[dict
     """Download Aldi weekly PDF flyer and extract products with Docling."""
     today = date.today()
     kw = today.isocalendar()[1]
-    pdf_url = f"https://s7g10.scene7.com/is/content/aldi/AW_KW{kw}_Sp01_DE_FINAL"
+
+    # Aldi Suisse uses multiple URL patterns for weekly flyers
+    pdf_urls = [
+        f"https://s7g10.scene7.com/is/content/aldi/AW_KW{kw}_Sp01_DE_FINAL",
+        f"https://s7g10.scene7.com/is/content/aldi/AW_KW{kw:02d}_Sp01_DE_FINAL",
+        f"https://s7g10.scene7.com/is/content/aldi/AW_KW{kw}_DE",
+    ]
 
     async with httpx.AsyncClient(headers=HEADERS, timeout=60.0) as client:
-        try:
-            resp = await client.get(pdf_url)
-            if not resp.is_success:
-                logger.warning(f"No Aldi PDF for KW{kw} (HTTP {resp.status_code})")
-                return []
+        for pdf_url in pdf_urls:
+            try:
+                resp = await client.get(pdf_url)
+                if resp.is_success and len(resp.content) > 1000:
+                    products = await extract_products_from_pdf_bytes(
+                        resp.content, "aldi"
+                    )
+                    logger.info(
+                        f"Aldi: {len(products)} products from KW{kw} PDF ({pdf_url})"
+                    )
+                    return products[:max_items]
+            except Exception as e:
+                logger.warning(f"Aldi PDF attempt failed ({pdf_url}): {e}")
 
-            products = await extract_products_from_pdf_bytes(resp.content, "aldi")
-            logger.info(f"Aldi: {len(products)} products from KW{kw} PDF")
-            return products[:max_items]
-
-        except Exception as e:
-            logger.error(f"Aldi scraping failed: {e}")
-            return []
+    logger.warning(f"No Aldi PDF found for KW{kw}")
+    return []
 
 
 # ---------------------------------------------------------------------------
-# Migros — Issuu PDF + HTML aktionen page
+# Migros — Playwright scraping of offers page
 # ---------------------------------------------------------------------------
 async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Migros from Issuu Wochenflyer (Docling OCR) + aktionen HTML page."""
-    products = []
+    """Scrape Migros offers via Playwright on /de/offers/home.
 
-    # 1. Download Issuu Wochenflyer page images → Docling extraction
-    today = date.today()
-    kw = today.isocalendar()[1]
-    year = today.year
-    # Migros publishes on Issuu as m-magazin
-    # Pattern: migros-wochenflyer-{KW:02d}-{YEAR}-d-{region_code}
-    region_code = {"zurich": "zh", "bern": "be", "basel": "bs"}.get(region, "aa")
-    issuu_slug = f"migros-wochenflyer-{kw:02d}-{year}-d-{region_code}"
-    logger.info(f"Migros: downloading Issuu KW{kw:02d} ({issuu_slug})")
-
-    issuu_products = await _scrape_issuu_publication("m-magazin", issuu_slug, "migros")
-    products.extend(issuu_products)
-
-    # 2. Scrape HTML aktionen page via Playwright (through Crawlee)
+    Migros is an Angular SPA that loads product data via authenticated API.
+    We use Playwright to render the page and extract from the DOM.
+    Selectors: article[mo-basic-product-card], mo-product-name, mo-product-price.
+    """
     try:
         from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
 
@@ -144,37 +101,63 @@ async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[di
         crawler = PlaywrightCrawler(
             max_requests_per_crawl=1,
             headless=True,
-            request_handler_timeout=timedelta(seconds=60),
+            request_handler_timeout=timedelta(seconds=90),
         )
 
         @crawler.router.default_handler
         async def migros_handler(context: PlaywrightCrawlingContext) -> None:
-            context.log.info(f"Scraping Migros aktionen: {context.request.url}")
-            await context.page.wait_for_timeout(3000)
+            context.log.info(f"Scraping Migros offers: {context.request.url}")
+            # Wait for product cards to render (Angular SPA)
+            await context.page.wait_for_timeout(5000)
+
+            # Scroll to trigger lazy loading
+            for _ in range(3):
+                await context.page.evaluate("window.scrollBy(0, 1000)")
+                await context.page.wait_for_timeout(1500)
 
             items = await context.page.evaluate("""() => {
                 const results = [];
                 const cards = document.querySelectorAll(
-                    '[class*="product-card"], [class*="ProductCard"], [class*="offer-card"], article[class*="product"]'
+                    'article[mo-basic-product-card]'
                 );
                 cards.forEach(card => {
-                    if (card.closest('nav, footer, header')) return;
-                    const nameEl = card.querySelector(
-                        '[class*="product-name"], [class*="ProductName"], h2, h3, [class*="title"]'
-                    );
-                    const priceEl = card.querySelector('[class*="price"], [class*="Price"]');
-                    const imgEl = card.querySelector('img');
-                    const discountEl = card.querySelector('[class*="discount"], [class*="badge"]');
-                    const name = nameEl?.textContent?.trim();
-                    const priceText = priceEl?.textContent?.trim();
-                    const img = imgEl?.src || imgEl?.getAttribute('data-src');
-                    const discount = discountEl?.textContent?.trim();
+                    // Name: mo-product-name > .name + .desc
+                    const brand = card.querySelector('mo-product-name .name')
+                        ?.textContent?.trim() || '';
+                    const desc = card.querySelector(
+                        'mo-product-name .desc span[data-testid]'
+                    )?.textContent?.trim() || '';
+                    const name = (brand ? brand + ' ' : '') + desc;
+
+                    // Price
+                    const currentPrice = card.querySelector(
+                        '[data-testid="current-price"]'
+                    )?.textContent?.trim() || '';
+                    const originalPrice = card.querySelector(
+                        '[data-testid="original-price"]'
+                    )?.textContent?.trim() || '';
+
+                    // Discount badge
+                    const badge = card.querySelector(
+                        'span[data-cy*="PERCENTAGE"] span[data-testid="description"]'
+                    )?.textContent?.trim() || '';
+
+                    // Image
+                    const img = card.querySelector(
+                        'mo-product-image-universal img'
+                    )?.src || '';
+
                     if (name && name.length > 2) {
-                        results.push({name, price: priceText || '', img: img || '', discount: discount || ''});
+                        results.push({
+                            name, price: currentPrice,
+                            originalPrice, discount: badge, img
+                        });
                     }
                 });
                 return results;
             }""")
+
+            context.log.info(f"Found {len(items)} Migros products")
 
             seen: set[str] = set()
             for item in items:
@@ -183,39 +166,37 @@ async def scrape_migros(max_items: int = 200, region: str = "zurich") -> list[di
                     continue
                 seen.add(name.lower())
 
-                price = _parse_price(item.get("price", ""))
-                discount = None
-                dm = re.search(r"(\d{1,2})\s*%", item.get("discount", ""))
-                if dm:
-                    discount = float(dm.group(1))
+                found_products.append(
+                    {
+                        "retailer": "migros",
+                        "name": name,
+                        "price": _parse_price(item.get("price", "")),
+                        "discount_pct": _parse_discount(item.get("discount", "")),
+                        "image_url": item.get("img") or None,
+                        "category": "offer",
+                        "region": region,
+                    }
+                )
 
-                found_products.append({
-                    "retailer": "migros",
-                    "name": name,
-                    "price": price,
-                    "discount_pct": discount,
-                    "image_url": item.get("img") or None,
-                    "category": "offer",
-                    "region": region,
-                })
-
-        await crawler.run(["https://www.migros.ch/de/aktionen.html"])
-        products.extend(found_products)
+        await crawler.run(["https://www.migros.ch/de/offers/home"])
+        logger.info(f"Migros: {len(found_products)} products")
+        return found_products[:max_items]
 
     except Exception as e:
         logger.error(f"Migros scraping failed: {e}")
-
-    logger.info(f"Migros: {len(products)} products total")
-    return products[:max_items]
+        return []
 
 
 # ---------------------------------------------------------------------------
-# Coop — ePaper PDF + HTML aktionen page
+# Coop — Playwright scraping of aktionen page
 # ---------------------------------------------------------------------------
 async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Coop aktionen page via Crawlee Playwright."""
-    products = []
+    """Scrape Coop aktionen via Playwright.
 
+    Coop uses SAP Hybris with SpeedKit lazy loading. Products are in
+    a.productTile elements with data-udo-price and data-udo-coupon attributes.
+    The correct URL is /de/aktionen/aktuelle-aktionen/c/m_1011 (NOT .html).
+    """
     try:
         from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
 
@@ -224,7 +205,7 @@ async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict
         crawler = PlaywrightCrawler(
             max_requests_per_crawl=1,
             headless=True,
-            request_handler_timeout=timedelta(seconds=60),
+            request_handler_timeout=timedelta(seconds=90),
         )
 
         @crawler.router.default_handler
@@ -232,27 +213,60 @@ async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict
             context.log.info(f"Scraping Coop aktionen: {context.request.url}")
             await context.page.wait_for_timeout(3000)
 
+            # Scroll down to trigger SpeedKit lazy loading of product carousels
+            for _ in range(5):
+                await context.page.evaluate("window.scrollBy(0, 1500)")
+                await context.page.wait_for_timeout(1500)
+            # Scroll back up so all tiles are accessible
+            await context.page.evaluate("window.scrollTo(0, 0)")
+            await context.page.wait_for_timeout(1000)
+
             items = await context.page.evaluate("""() => {
                 const results = [];
-                const cards = document.querySelectorAll(
-                    '[class*="product"], [class*="Product"], [class*="offer"], article'
-                );
-                cards.forEach(card => {
-                    if (card.closest('nav, footer, header')) return;
-                    const nameEl = card.querySelector(
-                        '[class*="product-name"], [class*="productName"], h3, h4, [class*="title"]'
+                const tiles = document.querySelectorAll('a.productTile');
+                tiles.forEach(tile => {
+                    const name = tile.querySelector(
+                        '.productTile-details__name-value'
+                    )?.textContent?.trim() || '';
+
+                    // data-udo-price on dd element inside tile
+                    const priceEl = tile.querySelector('[data-udo-price]');
+                    const price = priceEl
+                        ? priceEl.getAttribute('data-udo-price') : '';
+
+                    // data-udo-coupon for discount
+                    const couponEl = tile.querySelector('[data-udo-coupon]');
+                    const discount = couponEl
+                        ? couponEl.getAttribute('data-udo-coupon') : '';
+
+                    // Old price
+                    const oldPriceEl = tile.querySelector(
+                        '.productTile__price-value-lead-price-old'
                     );
-                    const priceEl = card.querySelector('[class*="price"], [class*="Price"]');
-                    const imgEl = card.querySelector('img');
-                    const name = nameEl?.textContent?.trim();
-                    const priceText = priceEl?.textContent?.trim();
-                    const img = imgEl?.src || imgEl?.getAttribute('data-src');
+                    const oldPrice = oldPriceEl
+                        ? oldPriceEl.textContent?.trim() : '';
+
+                    // Image (lazy loaded)
+                    const imgEl = tile.querySelector(
+                        'img.product-listing__thumbnail__image'
+                    );
+                    const img = imgEl
+                        ? (imgEl.getAttribute('data-src')
+                            || imgEl.src || '') : '';
+
+                    // Product ID
+                    const pid = tile.getAttribute('data-productid') || '';
+
                     if (name && name.length > 2) {
-                        results.push({name, price: priceText || '', img: img || ''});
+                        results.push({
+                            name, price, discount, oldPrice, img, pid
+                        });
                     }
                 });
                 return results;
             }""")
+
+            context.log.info(f"Found {len(items)} Coop products")
 
             seen: set[str] = set()
             for item in items:
@@ -261,32 +275,50 @@ async def scrape_coop(max_items: int = 200, region: str = "zurich") -> list[dict
                     continue
                 seen.add(name.lower())
 
-                found_products.append({
-                    "retailer": "coop",
-                    "name": name,
-                    "price": _parse_price(item.get("price", "")),
-                    "image_url": item.get("img") or None,
-                    "category": "offer",
-                    "region": region,
-                })
+                price = None
+                if item.get("price"):
+                    try:
+                        price = float(item["price"])
+                    except ValueError:
+                        price = _parse_price(item["price"])
 
-        await crawler.run(["https://www.coop.ch/de/aktionen.html"])
-        products.extend(found_products)
+                img_url = item.get("img") or None
+                if img_url and img_url.startswith("//"):
+                    img_url = "https:" + img_url
+
+                found_products.append(
+                    {
+                        "retailer": "coop",
+                        "name": name,
+                        "price": price,
+                        "discount_pct": _parse_discount(item.get("discount", "")),
+                        "image_url": img_url,
+                        "category": "offer",
+                        "region": region,
+                    }
+                )
+
+        await crawler.run(
+            ["https://www.coop.ch/de/aktionen/aktuelle-aktionen/c/m_1011"]
+        )
+        logger.info(f"Coop: {len(found_products)} products")
+        return found_products[:max_items]
 
     except Exception as e:
         logger.error(f"Coop scraping failed: {e}")
-
-    logger.info(f"Coop: {len(products)} products")
-    return products[:max_items]
+        return []
 
 
 # ---------------------------------------------------------------------------
-# Denner — HTML aktionen + Issuu PDF
+# Denner — BeautifulSoup HTML scraping (SSR / Nuxt)
 # ---------------------------------------------------------------------------
 async def scrape_denner(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Scrape Denner aktionen page via Crawlee BeautifulSoup."""
-    products = []
+    """Scrape Denner aktionen page via BeautifulSoup.
 
+    Denner uses Nuxt 3 with SSR — product data is in the initial HTML.
+    Selectors: .product-item, .product-item__title, .price-tag__price,
+    .price-tag__discount, .product-item__image.
+    """
     try:
         from crawlee.crawlers import BeautifulSoupCrawler, BeautifulSoupCrawlingContext
 
@@ -301,134 +333,239 @@ async def scrape_denner(max_items: int = 200, region: str = "zurich") -> list[di
         async def denner_handler(context: BeautifulSoupCrawlingContext) -> None:
             context.log.info(f"Scraping Denner: {context.request.url}")
             soup = context.soup
-            main = soup.find("main") or soup
             seen: set[str] = set()
 
-            for el in main.select(
-                "[class*='product-card'], [class*='product-tile'], "
-                "[class*='promotion-item'], [class*='ProductCard']"
-            ):
-                name_el = el.select_one(
-                    "[class*='product-name'], [class*='product-title'], h3, h4"
-                )
-                price_el = el.select_one("[class*='price']")
-                img_el = el.select_one("img")
-
+            for item in soup.select(".product-item"):
+                name_el = item.select_one(".product-item__title")
                 name = name_el.get_text(strip=True) if name_el else ""
                 if not name or len(name) < 3 or name.lower() in seen:
                     continue
                 seen.add(name.lower())
 
-                price = _parse_price(price_el.get_text(strip=True)) if price_el else None
+                # Price: .price-tag__price contains "2.99statt 4.85*"
+                # We need to extract just the first price
+                price_el = item.select_one(".price-tag__price")
+                price = None
+                if price_el:
+                    price_text = price_el.get_text(strip=True)
+                    # Extract first price (current price) before "statt"
+                    price_match = PRICE_RE.search(price_text)
+                    if price_match:
+                        price = float(price_match.group(1).replace(",", "."))
+                        if not (PRICE_MIN <= price <= PRICE_MAX):
+                            price = None
+
+                # Discount percentage
+                discount_el = item.select_one(".price-tag__discount")
+                discount = None
+                if discount_el:
+                    discount = _parse_discount(discount_el.get_text(strip=True))
+
+                # Image
+                img_el = item.select_one(".product-item__image")
                 img_url = None
                 if img_el:
                     img_url = img_el.get("src") or img_el.get("data-src")
 
-                found_products.append({
-                    "retailer": "denner",
-                    "name": name,
-                    "price": price,
-                    "image_url": img_url,
-                    "category": "offer",
-                    "region": region,
-                })
+                # Subline (description/weight)
+                subline_el = item.select_one(".product-item__subline")
+                subline = subline_el.get_text(strip=True) if subline_el else ""
 
-        await crawler.run([
-            "https://www.denner.ch/de/aktionen-und-sortiment/aktuelle-aktionen"
-        ])
-        products.extend(found_products)
+                found_products.append(
+                    {
+                        "retailer": "denner",
+                        "name": f"{name} ({subline})" if subline else name,
+                        "price": price,
+                        "discount_pct": discount,
+                        "image_url": img_url,
+                        "category": "offer",
+                        "region": region,
+                    }
+                )
 
-    except Exception as e:
-        logger.error(f"Denner HTML scraping failed: {e}")
-
-    # 2. Download Denner Issuu Wochenprospekt → Docling extraction
-    today = date.today()
-    kw = today.isocalendar()[1]
-    year = today.year
-    # Denner publishes on Issuu as denner-ch, pattern: {YEAR}-{KW:02d}-de
-    issuu_slug = f"{year}-{kw:02d}-de"
-    logger.info(f"Denner: downloading Issuu KW{kw:02d} ({issuu_slug})")
-
-    try:
-        issuu_products = await _scrape_issuu_publication(
-            "denner-ch", issuu_slug, "denner"
+        await crawler.run(
+            ["https://www.denner.ch/de/aktionen-und-sortiment/aktuelle-aktionen"]
         )
-        # Deduplicate against HTML products
-        existing_names = {p["name"].lower() for p in products}
-        for p in issuu_products:
-            if p["name"].lower() not in existing_names:
-                products.append(p)
-                existing_names.add(p["name"].lower())
-    except Exception as e:
-        logger.warning(f"Denner Issuu extraction failed: {e}")
 
-    logger.info(f"Denner: {len(products)} products total")
-    return products[:max_items]
+        logger.info(f"Denner: {len(found_products)} products")
+        return found_products[:max_items]
+
+    except Exception as e:
+        logger.error(f"Denner scraping failed: {e}")
+        return []
 
 
 # ---------------------------------------------------------------------------
-# Lidl — Playwright PDF discovery + Docling extraction
+# Lidl — Leaflets API + product page scraping
 # ---------------------------------------------------------------------------
 async def scrape_lidl(max_items: int = 200, region: str = "zurich") -> list[dict]:
-    """Discover Lidl PDF links via Crawlee Playwright, extract with Docling."""
-    products = []
+    """Scrape Lidl via the Leaflets API for flyer products.
 
+    Lidl's flyer viewer uses a public JSON API at endpoints.leaflets.schwarz
+    that returns structured product data (names, links, positions on pages).
+    We also scrape the product listing page for additional items.
+    """
+    products: list[dict] = []
+
+    # 1. Scrape flyer pages via Leaflets API
     try:
-        from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
-
-        pdf_urls_found: list[str] = []
-
-        crawler = PlaywrightCrawler(
-            max_requests_per_crawl=1,
-            headless=True,
-            request_handler_timeout=timedelta(seconds=60),
-        )
-
-        @crawler.router.default_handler
-        async def lidl_handler(context: PlaywrightCrawlingContext) -> None:
-            context.log.info(f"Scraping Lidl PDFs: {context.request.url}")
-            await context.page.wait_for_timeout(3000)
-
-            links = await context.page.evaluate("""() => {
-                const results = [];
-                document.querySelectorAll('a[href*=".pdf"]').forEach(a => {
-                    results.push(a.href);
-                });
-                document.querySelectorAll('[data-href*=".pdf"], [download]').forEach(el => {
-                    const href = el.getAttribute('data-href') || el.getAttribute('href');
-                    if (href) results.push(href);
-                });
-                return results;
-            }""")
-
-            for link in links:
-                if link and link not in pdf_urls_found:
-                    pdf_urls_found.append(link)
-
-        await crawler.run([
-            "https://www.lidl.ch/c/de-CH/werbeprospekte-als-pdf/s10019683"
-        ])
-
-        # Download and extract PDFs with Docling
-        if pdf_urls_found:
-            async with httpx.AsyncClient(headers=HEADERS, timeout=60.0) as client:
-                for url in pdf_urls_found[:3]:
-                    try:
-                        resp = await client.get(url)
-                        if resp.is_success:
-                            pdf_products = await extract_products_from_pdf_bytes(
-                                resp.content, "lidl"
-                            )
-                            products.extend(pdf_products)
-                            if len(products) >= max_items:
-                                break
-                    except Exception as e:
-                        logger.warning(f"Lidl PDF download failed: {e}")
-        else:
-            logger.warning("No Lidl PDF URLs found")
-
+        await _scrape_lidl_flyers(products, max_items)
     except Exception as e:
-        logger.error(f"Lidl scraping failed: {e}")
+        logger.warning(f"Lidl flyer API failed: {e}")
 
-    logger.info(f"Lidl: {len(products)} products")
+    # 2. Scrape product offers page via Playwright
+    if len(products) < max_items:
+        try:
+            await _scrape_lidl_offers_page(products, max_items, region)
+        except Exception as e:
+            logger.warning(f"Lidl offers page failed: {e}")
+
+    logger.info(f"Lidl: {len(products)} products total")
     return products[:max_items]
+
+
+async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
+    """Fetch Lidl flyer data from the Leaflets API."""
+    async with httpx.AsyncClient(headers=HEADERS, timeout=30.0) as client:
+        # First get the flyer listing page to find current flyer slugs
+        resp = await client.get(
+            "https://www.lidl.ch/c/de-CH/werbeprospekte-als-pdf/s10019683"
+        )
+        if not resp.is_success:
+            logger.warning(f"Lidl flyer page: HTTP {resp.status_code}")
+            return
+
+        # Extract flyer identifiers from the page HTML
+        slugs = re.findall(
+            r'data-track-name="([^"]+)"[^>]*data-track-type="flyer"', resp.text
+        )
+        if not slugs:
+            # Fallback: try common slug patterns
+            kw = date.today().isocalendar()[1]
+            slugs = [f"lidl-aktuell-kw{kw}", f"lidl-aktuell-kw{kw:02d}"]
+
+        logger.info(f"Lidl: found {len(slugs)} flyer slugs: {slugs[:5]}")
+
+        seen: set[str] = set()
+        for slug in slugs[:3]:  # max 3 flyers
+            try:
+                api_url = (
+                    f"https://endpoints.leaflets.schwarz/v4/flyer"
+                    f"?flyer_identifier={slug}&region_id=0&region_code=0"
+                )
+                api_resp = await client.get(api_url)
+                if not api_resp.is_success:
+                    continue
+
+                flyer = api_resp.json()
+                pages = flyer.get("pages", [])
+
+                for page in pages:
+                    for link in page.get("links", []):
+                        if link.get("displayType") != "product":
+                            continue
+                        title = link.get("title", "").strip()
+                        if not title or len(title) < 3 or title.lower() in seen:
+                            continue
+                        seen.add(title.lower())
+
+                        products.append(
+                            {
+                                "retailer": "lidl",
+                                "name": title,
+                                "price": None,  # Flyer API doesn't include prices
+                                "discount_pct": None,
+                                "image_url": None,
+                                "category": "flyer",
+                                "region": "national",
+                            }
+                        )
+
+                        if len(products) >= max_items:
+                            return
+
+                logger.info(
+                    f"Lidl flyer '{slug}': "
+                    f"{sum(len(p.get('links', [])) for p in pages)} product links"
+                )
+
+            except Exception as e:
+                logger.warning(f"Lidl flyer '{slug}' failed: {e}")
+
+
+async def _scrape_lidl_offers_page(
+    products: list[dict], max_items: int, region: str
+) -> None:
+    """Scrape Lidl product offers page via Playwright."""
+    from crawlee.crawlers import PlaywrightCrawler, PlaywrightCrawlingContext
+
+    existing_names = {p["name"].lower() for p in products}
+
+    crawler = PlaywrightCrawler(
+        max_requests_per_crawl=1,
+        headless=True,
+        request_handler_timeout=timedelta(seconds=60),
+    )
+
+    @crawler.router.default_handler
+    async def lidl_handler(context: PlaywrightCrawlingContext) -> None:
+        context.log.info(f"Scraping Lidl offers: {context.request.url}")
+        await context.page.wait_for_timeout(3000)
+
+        # Scroll to load more products
+        for _ in range(3):
+            await context.page.evaluate("window.scrollBy(0, 1000)")
+            await context.page.wait_for_timeout(1000)
+
+        items = await context.page.evaluate("""() => {
+            const results = [];
+            const tiles = document.querySelectorAll('.product-grid-box');
+            tiles.forEach(tile => {
+                const name = tile.querySelector(
+                    '.product-grid-box__title'
+                )?.textContent?.trim() || '';
+
+                const price = tile.querySelector(
+                    '.ods-price__value'
+                )?.textContent?.trim() || '';
+
+                const oldPrice = tile.querySelector(
+                    '.ods-price__stroke-price s'
+                )?.textContent?.trim() || '';
+
+                const discount = tile.querySelector(
+                    '.ods-price__box-content-text-el'
+                )?.textContent?.trim() || '';
+
+                const img = tile.querySelector(
+                    '.odsc-image-gallery__image'
+                )?.src || '';
+
+                if (name && name.length > 2) {
+                    results.push({name, price, oldPrice, discount, img});
+                }
+            });
+            return results;
+        }""")
+
+        context.log.info(f"Found {len(items)} Lidl products on offers page")
+
+        for item in items:
+            name = item["name"]
+            if name.lower() in existing_names:
+                continue
+            existing_names.add(name.lower())
+
+            products.append(
+                {
+                    "retailer": "lidl",
+                    "name": name,
+                    "price": _parse_price(item.get("price", "")),
+                    "discount_pct": _parse_discount(item.get("discount", "")),
+                    "image_url": item.get("img") or None,
+                    "category": "offer",
+                    "region": region,
+                }
+            )
+
+    await crawler.run(["https://www.lidl.ch/h/de-CH/unsere-highlights/h10007395"])
