@@ -2,12 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 
-export type UserResponse = {
+export type HouseholdMemberResponse = {
   id: string;
-  clerk_id: string;
-  email: string;
   username: string;
   avatar_url: string | null;
-  household_id: string | null;
-  health_streak_days: number;
 };
