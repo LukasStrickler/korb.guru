@@ -99,15 +99,7 @@ redis:
     - redisdata:/data
 ```
 
-2. Update rate limiter in `ingest_ratelimit.py`:
-
-```python
-from slowapi import Limiter
-limiter = Limiter(key_func=get_remote_address, storage_uri="redis://redis:6379")
-```
-
-> **Note:** The limiter instance must be stored on `app.state.limiter` so that
-> SlowAPI's exception handler and middleware can find it at runtime.
+2. Replace the in-memory backoff in `ingest_ratelimit.py` with a Redis-backed implementation to persist state across restarts and share it between instances.
 
 3. Use Redis for caching frequently accessed data (product search results, recipe recommendations).
 
