@@ -4,6 +4,7 @@ import re
 import uuid
 from collections import defaultdict
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,8 @@ def _parse_quantity(qty: str | None) -> tuple[float, str]:
     match = re.match(r"^([\d.]+)\s*(.*)$", qty.strip())
     if match:
         return (float(match.group(1)), match.group(2).strip())
-    return (0.0, qty.strip())
+    # Preserve non-numeric quantities (e.g. "a pinch", "to taste")
+    return (1.0, qty.strip())
 
 
 def _format_quantity(amount: float, unit: str) -> str:
@@ -73,12 +75,12 @@ async def generate_grocery_list(
     accumulated: dict[
         str, tuple[float, str, str]
     ] = {}  # agg_key -> (amount, unit, original_name)
-    total = 0.0
+    total = Decimal("0")
     for recipe_id, count in recipe_counts.items():
         recipe = recipes.get(recipe_id)
         if not recipe:
             continue
-        total += float(recipe.cost) * count
+        total += recipe.cost * count
         for ing in ings_by_recipe.get(recipe_id, []):
             amount, qty_unit = _parse_quantity(ing.quantity)
             # Prefer the dedicated unit column; fall back to unit parsed from quantity

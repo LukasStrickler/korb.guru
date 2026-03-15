@@ -2,10 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 
-export type GroceryItemResponse = {
-  id: string;
+export type AutoRefillRuleRequest = {
   ingredient_name: string;
-  quantity: string | null;
-  category: string;
-  is_checked: boolean;
+  threshold_days?: number;
 };

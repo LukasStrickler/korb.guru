@@ -459,14 +459,16 @@ function HomeContent() {
               <View className="h-3 rounded-full bg-gray-200 overflow-hidden">
                 <View
                   className={`h-full rounded-full ${
+                    budget.weekly_limit > 0 &&
                     budget.spent_this_week / budget.weekly_limit > 0.9
                       ? "bg-red-500"
-                      : budget.spent_this_week / budget.weekly_limit > 0.6
+                      : budget.weekly_limit > 0 &&
+                          budget.spent_this_week / budget.weekly_limit > 0.6
                         ? "bg-yellow-500"
                         : "bg-green-500"
                   }`}
                   style={{
-                    width: `${Math.min(100, (budget.spent_this_week / budget.weekly_limit) * 100)}%`,
+                    width: `${budget.weekly_limit > 0 ? Math.min(100, (budget.spent_this_week / budget.weekly_limit) * 100) : 0}%`,
                   }}
                 />
               </View>

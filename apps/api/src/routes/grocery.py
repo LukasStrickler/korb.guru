@@ -167,6 +167,7 @@ async def bulk_add_items(
             id=i.id,
             ingredient_name=i.ingredient_name,
             quantity=i.quantity,
+            category=i.category or "Other",
             is_checked=i.is_checked,
         )
         for i in created

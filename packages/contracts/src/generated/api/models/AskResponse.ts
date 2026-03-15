@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 
-export type AutoRefillRule = {
-  ingredient_name: string;
-  threshold_days?: number;
+export type AskResponse = {
+  answer: string;
+  products: Array<Record<string, any>>;
 };

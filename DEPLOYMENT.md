@@ -36,7 +36,7 @@ Set these in Coolify's environment configuration:
 | `APIFY_TOKEN`       | Yes      | Your Apify API token for crawlers + LLM categorization                       |
 | `QDRANT_MODE`       | No       | `docker` (default) for compose setup                                         |
 | `QDRANT_HOST`       | No       | `qdrant` (default, matches compose service name)                             |
-| `CORS_ORIGINS`      | Yes      | JSON array of allowed frontend origins                                       |
+| `CORS_ORIGINS`      | Yes      | Comma-separated list of allowed frontend origins                             |
 | `LOG_LEVEL`         | No       | `INFO` (default), `DEBUG`, `WARNING`                                         |
 
 For Qdrant Cloud (instead of local):
@@ -76,7 +76,7 @@ Coolify handles HTTPS automatically via Traefik:
 For the frontend, set `CORS_ORIGINS` to your actual frontend domain:
 
 ```
-CORS_ORIGINS=["https://app.korb.guru"]
+CORS_ORIGINS=https://app.korb.guru
 ```
 
 ---
@@ -103,6 +103,9 @@ redis:
 from slowapi import Limiter
 limiter = Limiter(key_func=get_remote_address, storage_uri="redis://redis:6379")
 ```
+
+> **Note:** The limiter instance must be stored on `app.state.limiter` so that
+> SlowAPI's exception handler and middleware can find it at runtime.
 
 3. Use Redis for caching frequently accessed data (product search results, recipe recommendations).
 
@@ -200,7 +203,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install -r backend/requirements.txt
+      - run: pip install uv && uv pip install --system --no-cache ./backend
       - run: cd backend && python -m pytest
 
   deploy:

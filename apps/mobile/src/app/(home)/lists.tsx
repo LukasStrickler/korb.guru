@@ -188,6 +188,10 @@ export default function ListsScreen() {
 
     const newChecked = !item.is_checked;
 
+    // Check token before optimistic update so we can bail without needing to revert
+    const token = await getToken();
+    if (!token) return;
+
     // Optimistic update
     setLists((prev) =>
       prev.map((l, li) =>
@@ -204,8 +208,6 @@ export default function ListsScreen() {
 
     // Persist to backend
     try {
-      const token = await getToken();
-      if (!token) return;
       await bulkUpdateGroceryItems(token, [
         { item_id: itemId, is_checked: newChecked },
       ]);

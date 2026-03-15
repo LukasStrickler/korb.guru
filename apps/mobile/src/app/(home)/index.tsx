@@ -182,7 +182,9 @@ export default function SearchScreen() {
         return;
       }
       const retailers =
-        selectedRetailer === "All" ? undefined : [selectedRetailer];
+        selectedRetailer === "All"
+          ? undefined
+          : [selectedRetailer.toLowerCase()];
       const data = await searchProducts(token, trimmed, retailers);
       setResults(data);
       setStatus("ok");

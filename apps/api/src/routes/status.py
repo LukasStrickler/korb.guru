@@ -1,5 +1,6 @@
 """System status endpoint — checks health of all external dependencies."""
 
+import asyncio
 import logging
 import os
 import time
@@ -27,7 +28,8 @@ async def system_status(db: AsyncSession = Depends(get_db)):
         latency_ms = (time.perf_counter() - start) * 1000
         checks["postgres"] = {"status": "ok", "latency_ms": round(latency_ms, 1)}
     except Exception as e:
-        checks["postgres"] = {"status": "error", "error": str(e)}
+        logger.warning("Postgres health check failed: %s", e)
+        checks["postgres"] = {"status": "error", "error": "unavailable"}
         overall = "degraded"
 
     # 2. Qdrant
@@ -36,7 +38,7 @@ async def system_status(db: AsyncSession = Depends(get_db)):
 
         start = time.perf_counter()
         client = get_qdrant_client()
-        collections = client.get_collections().collections
+        collections = (await asyncio.to_thread(client.get_collections)).collections
         latency_ms = (time.perf_counter() - start) * 1000
         checks["qdrant"] = {
             "status": "ok",
@@ -44,7 +46,8 @@ async def system_status(db: AsyncSession = Depends(get_db)):
             "collections": [c.name for c in collections],
         }
     except Exception as e:
-        checks["qdrant"] = {"status": "error", "error": str(e)}
+        logger.warning("Qdrant health check failed: %s", e)
+        checks["qdrant"] = {"status": "error", "error": "unavailable"}
         overall = "degraded"
 
     # 3. OpenRouter LLM

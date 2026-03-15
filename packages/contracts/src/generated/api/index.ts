@@ -2,7 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 
-export type { AutoRefillRule } from "./models/AutoRefillRule";
+export type { AskRequest } from "./models/AskRequest";
+export type { AskResponse } from "./models/AskResponse";
+export type { AutoRefillRuleRequest } from "./models/AutoRefillRuleRequest";
+export type { BatchSearchRequest } from "./models/BatchSearchRequest";
 export type { BudgetEntryCreate } from "./models/BudgetEntryCreate";
 export type { BudgetEntryResponse } from "./models/BudgetEntryResponse";
 export type { BudgetSettingsResponse } from "./models/BudgetSettingsResponse";
@@ -14,6 +17,7 @@ export type { ExampleItem } from "./models/ExampleItem";
 export type { GroceryItemCreate } from "./models/GroceryItemCreate";
 export type { GroceryItemResponse } from "./models/GroceryItemResponse";
 export type { GroceryItemUpdate } from "./models/GroceryItemUpdate";
+export type { GroceryListCreate } from "./models/GroceryListCreate";
 export type { GroceryListResponse } from "./models/GroceryListResponse";
 export type { HouseholdCreate } from "./models/HouseholdCreate";
 export type { HouseholdJoin } from "./models/HouseholdJoin";
@@ -30,6 +34,8 @@ export type { MessageCreate } from "./models/MessageCreate";
 export type { MessageResponse } from "./models/MessageResponse";
 export type { PollCreate } from "./models/PollCreate";
 export type { PollResponse } from "./models/PollResponse";
+export type { ProductFeedbackRequest } from "./models/ProductFeedbackRequest";
+export type { ProductRecord } from "./models/ProductRecord";
 export type { ProductResponse } from "./models/ProductResponse";
 export type { ProfileUpdate } from "./models/ProfileUpdate";
 export type { ReceiptItem } from "./models/ReceiptItem";

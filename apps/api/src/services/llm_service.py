@@ -1,5 +1,6 @@
 """LLM service — chat completions via OpenRouter."""
 
+import json
 import logging
 
 import httpx
@@ -58,6 +59,6 @@ async def ask_llm(
             "OpenRouter HTTP %s: %s", exc.response.status_code, exc.response.text
         )
         return "Sorry, the LLM request failed. Please try again later."
-    except (httpx.RequestError, KeyError, IndexError) as exc:
+    except (httpx.RequestError, KeyError, IndexError, json.JSONDecodeError) as exc:
         logger.error("OpenRouter request error: %s", exc)
         return "Sorry, the LLM request failed. Please try again later."

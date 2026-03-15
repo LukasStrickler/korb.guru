@@ -57,7 +57,7 @@ export default function RecipesScreen() {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      return d.toISOString().split("T")[0] ?? "";
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     });
   };
 
@@ -127,6 +127,8 @@ export default function RecipesScreen() {
         setErrorMsg("Not signed in");
         return;
       }
+      // TODO: Backend GET /api/v1/recipes/discover does not support a `type` query param.
+      // The `recipeType` filter is cosmetic only (hackathon); remove or implement backend support.
       const data = await discoverRecipesWithType(token, recipeType);
       setRecipes(data);
       setCurrentIndex(0);

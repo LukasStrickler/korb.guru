@@ -53,9 +53,19 @@ def upgrade() -> None:
         "auto_refill_rules",
         ["household_id"],
     )
+    op.create_unique_constraint(
+        "uq_auto_refill_household_ingredient",
+        "auto_refill_rules",
+        ["household_id", "ingredient_name"],
+    )
 
 
 def downgrade() -> None:
+    op.drop_constraint(
+        "uq_auto_refill_household_ingredient",
+        "auto_refill_rules",
+        type_="unique",
+    )
     op.drop_index(
         op.f("ix_auto_refill_rules_household_id"),
         table_name="auto_refill_rules",

@@ -3,6 +3,8 @@
 import logging
 from pathlib import Path
 
+# TODO: Replace sync QdrantClient with AsyncQdrantClient for production use.
+# Kept synchronous for hackathon deadline — changing now is too risky.
 from qdrant_client import QdrantClient
 
 from ..config import get_settings

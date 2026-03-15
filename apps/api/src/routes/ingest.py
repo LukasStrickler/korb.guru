@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import uuid
@@ -88,7 +89,47 @@ async def _process_records(
     if not records:
         return
 
-    # --- Postgres upsert ---
+    # --- Build Qdrant points first (embedding can fail before any DB writes) ---
+    names = [rec.name for rec in records]
+    embeddings = await asyncio.to_thread(embed_texts, names)
+
+    points = []
+    for rec, dense_vector in zip(records, embeddings):
+        product_id = _deterministic_uuid(rec.retailer, rec.name)
+        sparse_indices, sparse_values = _sparse_vector(rec.name)
+        region = rec.region or default_region
+
+        payload: dict[str, Any] = {
+            "retailer": rec.retailer,
+            "name": rec.name,
+            "region": region,
+        }
+        if rec.category is not None:
+            payload["category"] = rec.category
+        if rec.price is not None:
+            payload["price"] = float(rec.price)
+        if rec.discount_pct is not None:
+            payload["discount_pct"] = rec.discount_pct
+        if rec.valid_to is not None:
+            payload["valid_to"] = rec.valid_to.isoformat()
+
+        points.append(
+            models.PointStruct(
+                id=product_id.hex,
+                vector={
+                    "dense": dense_vector,
+                    "sparse": models.SparseVector(
+                        indices=sparse_indices,
+                        values=sparse_values,
+                    ),
+                },
+                payload=payload,
+            )
+        )
+
+    # --- Postgres upsert + Qdrant upsert in same transaction scope ---
+    # Qdrant upsert runs inside the session.begin() block so that if it
+    # fails, the Postgres transaction is rolled back automatically.
     session_factory = get_session_local()
     try:
         async with session_factory() as session:
@@ -124,55 +165,17 @@ async def _process_records(
                         },
                     )
                     await session.execute(stmt)
+
+                # Qdrant upsert BEFORE Postgres commit (begin block commits on exit)
+                client = get_qdrant_client()
+                await asyncio.to_thread(
+                    client.upsert, collection_name=QDRANT_COLLECTION, points=points
+                )
+                logger.info("Qdrant upsert complete for %d points", len(points))
+
         logger.info("Postgres upsert complete for %d records", len(records))
     except Exception:
-        logger.exception("Postgres upsert failed")
-        raise
-
-    # --- Qdrant upsert ---
-    try:
-        names = [rec.name for rec in records]
-        embeddings = embed_texts(names)
-
-        points = []
-        for rec, dense_vector in zip(records, embeddings):
-            product_id = _deterministic_uuid(rec.retailer, rec.name)
-            sparse_indices, sparse_values = _sparse_vector(rec.name)
-            region = rec.region or default_region
-
-            payload: dict[str, Any] = {
-                "retailer": rec.retailer,
-                "name": rec.name,
-                "region": region,
-            }
-            if rec.category is not None:
-                payload["category"] = rec.category
-            if rec.price is not None:
-                payload["price"] = float(rec.price)
-            if rec.discount_pct is not None:
-                payload["discount_pct"] = rec.discount_pct
-            if rec.valid_to is not None:
-                payload["valid_to"] = rec.valid_to.isoformat()
-
-            points.append(
-                models.PointStruct(
-                    id=product_id.hex,
-                    vector={
-                        "dense": dense_vector,
-                        "sparse": models.SparseVector(
-                            indices=sparse_indices,
-                            values=sparse_values,
-                        ),
-                    },
-                    payload=payload,
-                )
-            )
-
-        client = get_qdrant_client()
-        client.upsert(collection_name=QDRANT_COLLECTION, points=points)
-        logger.info("Qdrant upsert complete for %d points", len(points))
-    except Exception:
-        logger.exception("Qdrant upsert failed")
+        logger.exception("Ingest failed (Postgres rolled back)")
         raise
 
 

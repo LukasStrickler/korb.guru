@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN uv pip install --system --no-cache -r pyproject.toml
+COPY apps/ apps/
+RUN uv pip install --system --no-cache .
 
 # ---------- runtime stage ----------
 FROM python:3.12-slim

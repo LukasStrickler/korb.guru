@@ -17,6 +17,9 @@ _logger = logging.getLogger(__name__)
 # via the `dimensions` parameter (see embedding_service.py).
 NATIVE_EMBEDDING_DIMENSIONS: dict[str, int] = {
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": 384,
+}
+
+OPENAI_EMBEDDING_DIMENSIONS: dict[str, int] = {
     "text-embedding-ada-002": 1536,
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
@@ -58,21 +61,33 @@ class Settings(BaseSettings):
         Raises ValueError for unknown models to fail fast on misconfiguration.
         """
         if self.embedding_provider == "local":
+            if self.embedding_model in OPENAI_EMBEDDING_DIMENSIONS:
+                raise ValueError(
+                    f"Model {self.embedding_model!r} is an OpenAI model and cannot "
+                    f"be used with provider='local'. Use provider='openai' or choose "
+                    f"a local model: {list(NATIVE_EMBEDDING_DIMENSIONS.keys())}"
+                )
             if self.embedding_model not in NATIVE_EMBEDDING_DIMENSIONS:
                 raise ValueError(
                     f"Unknown local embedding model: {self.embedding_model!r}. "
                     f"Supported models: {list(NATIVE_EMBEDDING_DIMENSIONS.keys())}"
                 )
             return NATIVE_EMBEDDING_DIMENSIONS[self.embedding_model]
-        # OpenAI: we send `dimensions` in the API call → use configured size
+        # OpenAI: only text-embedding-3* models support the `dimensions` param
         if self.embedding_dimensions is not None:
-            return self.embedding_dimensions
-        if self.embedding_model in NATIVE_EMBEDDING_DIMENSIONS:
-            return NATIVE_EMBEDDING_DIMENSIONS[self.embedding_model]
+            if self.embedding_model.startswith("text-embedding-3"):
+                return self.embedding_dimensions
+            _logger.warning(
+                "embedding_dimensions is set but model %r does not support "
+                "custom dimensions; using native dimension instead",
+                self.embedding_model,
+            )
+        if self.embedding_model in OPENAI_EMBEDDING_DIMENSIONS:
+            return OPENAI_EMBEDDING_DIMENSIONS[self.embedding_model]
         raise ValueError(
             f"Unknown embedding model: {self.embedding_model!r} and no "
             f"embedding_dimensions configured. Set EMBEDDING_DIMENSIONS or use "
-            f"a known model: {list(NATIVE_EMBEDDING_DIMENSIONS.keys())}"
+            f"a known model: {list(OPENAI_EMBEDDING_DIMENSIONS.keys())}"
         )
 
 

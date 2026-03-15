@@ -2,8 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 
-export type GroceryItemCreate = {
-  ingredient_name: string;
-  quantity?: string | null;
-  category?: string;
+export type ProductFeedbackRequest = {
+  product_id: string;
+  helpful: boolean;
 };

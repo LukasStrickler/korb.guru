@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String, Uuid
+from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimestampMixin
@@ -28,6 +28,9 @@ class MealPoll(Base, TimestampMixin):
 
 class PollVote(Base, TimestampMixin):
     __tablename__ = "poll_votes"
+    __table_args__ = (
+        UniqueConstraint("poll_id", "user_id", name="uq_poll_votes_poll_user"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     poll_id: Mapped[uuid.UUID] = mapped_column(

@@ -204,6 +204,10 @@ def update_user_preference(
                 ],
             )
         else:
+            if action == "reject":
+                # Don't create a preference vector toward a disliked recipe.
+                # Only update existing preferences on reject.
+                return
             client.upsert(
                 collection_name="user_preferences",
                 points=[
@@ -213,8 +217,8 @@ def update_user_preference(
                         payload={
                             "user_id": user_id,
                             "household_id": household_id,
-                            "total_accepts": 1 if action == "accept" else 0,
-                            "total_rejects": 1 if action == "reject" else 0,
+                            "total_accepts": 1,
+                            "total_rejects": 0,
                         },
                     )
                 ],

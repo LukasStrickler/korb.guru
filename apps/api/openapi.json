@@ -24,6 +24,24 @@
         }
       }
     },
+    "/status": {
+      "get": {
+        "tags": ["status"],
+        "summary": "System Status",
+        "description": "Check health of all external services.",
+        "operationId": "system_status_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/hello": {
       "get": {
         "tags": ["hello"],
@@ -1088,6 +1106,48 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": ["grocery"],
+        "summary": "Create List",
+        "operationId": "create_list_api_v1_grocery_lists_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroceryListCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroceryListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/grocery/items/bulk": {
@@ -1555,6 +1615,119 @@
         }
       }
     },
+    "/api/v1/products/recommended": {
+      "get": {
+        "tags": ["products"],
+        "summary": "Recommended Products",
+        "description": "Get personalized recommendations from preference vector.",
+        "operationId": "recommended_products_api_v1_products_recommended_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "retailers",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Retailers"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductResponse"
+                  },
+                  "title": "Response Recommended Products Api V1 Products Recommended Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/batch-search": {
+      "post": {
+        "tags": ["products"],
+        "summary": "Batch Search",
+        "description": "Search for multiple queries at once (e.g., a list of ingredients).",
+        "operationId": "batch_search_api_v1_products_batch_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/products/compare": {
       "get": {
         "tags": ["products"],
@@ -1612,6 +1785,48 @@
         }
       }
     },
+    "/api/v1/products/feedback": {
+      "post": {
+        "tags": ["products"],
+        "summary": "Product Feedback",
+        "operationId": "product_feedback_api_v1_products_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductFeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/products/deals": {
       "get": {
         "tags": ["products"],
@@ -1656,6 +1871,51 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/products/ask": {
+      "post": {
+        "tags": ["products"],
+        "summary": "Ask Products",
+        "description": "Answer a question about products using hybrid search + LLM.",
+        "operationId": "ask_products_api_v1_products_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/messages": {
@@ -2149,6 +2409,26 @@
       }
     },
     "/api/v1/receipts/auto-refill": {
+      "get": {
+        "tags": ["receipts"],
+        "summary": "List Auto Refill Rules",
+        "operationId": "list_auto_refill_rules_api_v1_receipts_auto_refill_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
       "post": {
         "tags": ["receipts"],
         "summary": "Configure Auto Refill",
@@ -2157,14 +2437,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AutoRefillRule"
+                "$ref": "#/components/schemas/AutoRefillRuleRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -2193,7 +2473,39 @@
   },
   "components": {
     "schemas": {
-      "AutoRefillRule": {
+      "AskRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": ["question"],
+        "title": "AskRequest"
+      },
+      "AskResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "products": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Products"
+          }
+        },
+        "type": "object",
+        "required": ["answer", "products"],
+        "title": "AskResponse"
+      },
+      "AutoRefillRuleRequest": {
         "properties": {
           "ingredient_name": {
             "type": "string",
@@ -2211,7 +2523,55 @@
         },
         "type": "object",
         "required": ["ingredient_name"],
-        "title": "AutoRefillRule"
+        "title": "AutoRefillRuleRequest"
+      },
+      "BatchSearchRequest": {
+        "properties": {
+          "queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Queries"
+          },
+          "retailers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retailers"
+          },
+          "max_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Price"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": ["queries"],
+        "title": "BatchSearchRequest"
       },
       "BudgetEntryCreate": {
         "properties": {
@@ -2416,6 +2776,12 @@
               }
             ],
             "title": "Quantity"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Category",
+            "default": "Other"
           }
         },
         "type": "object",
@@ -2444,13 +2810,23 @@
             ],
             "title": "Quantity"
           },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
           "is_checked": {
             "type": "boolean",
             "title": "Is Checked"
           }
         },
         "type": "object",
-        "required": ["id", "ingredient_name", "quantity", "is_checked"],
+        "required": [
+          "id",
+          "ingredient_name",
+          "quantity",
+          "category",
+          "is_checked"
+        ],
         "title": "GroceryItemResponse"
       },
       "GroceryItemUpdate": {
@@ -2469,6 +2845,19 @@
         },
         "type": "object",
         "title": "GroceryItemUpdate"
+      },
+      "GroceryListCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": ["name"],
+        "title": "GroceryListCreate"
       },
       "GroceryListResponse": {
         "properties": {
@@ -2609,11 +2998,15 @@
           },
           "records": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/ProductRecord"
             },
             "type": "array",
             "title": "Records"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": "zurich"
           }
         },
         "type": "object",
@@ -2732,7 +3125,8 @@
             "type": "string",
             "maxLength": 2000,
             "minLength": 1,
-            "title": "Text"
+            "title": "Text",
+            "strip_whitespace": true
           }
         },
         "type": "object",
@@ -2836,11 +3230,150 @@
         "required": ["id", "recipe_id", "proposed_by", "is_active"],
         "title": "PollResponse"
       },
+      "ProductFeedbackRequest": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "helpful": {
+            "type": "boolean",
+            "title": "Helpful"
+          }
+        },
+        "type": "object",
+        "required": ["product_id", "helpful"],
+        "title": "ProductFeedbackRequest"
+      },
+      "ProductRecord": {
+        "properties": {
+          "retailer": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Retailer"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "originalPrice": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Originalprice"
+          },
+          "discountPct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discountpct"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "validFrom": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validfrom"
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validto"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "default": "zurich"
+          }
+        },
+        "type": "object",
+        "required": ["retailer", "name"],
+        "title": "ProductRecord",
+        "description": "Validated product record from a scraper."
+      },
       "ProductResponse": {
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid",
             "title": "Id"
           },
           "retailer": {

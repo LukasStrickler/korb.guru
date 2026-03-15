@@ -34,8 +34,11 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
                 "model": model_name,
                 "input": texts,
             }
-            # Only text-embedding-3* models support the dimensions parameter
-            if model_name.startswith("text-embedding-3"):
+            # Only text-embedding-3* models support the dimensions parameter.
+            # Guard: only set dimensions for actual OpenAI models, not when
+            # a local model name is configured with the openai provider.
+            is_v3 = model_name.startswith("text-embedding-3")
+            if is_v3 and settings.embedding_provider == "openai":
                 body["dimensions"] = settings.vector_size
 
             with httpx.Client(timeout=30.0) as http_client:

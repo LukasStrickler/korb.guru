@@ -10,74 +10,93 @@ from .client import get_qdrant_client
 logger = logging.getLogger(__name__)
 
 
+def _create_collection_safe(client, name: str, **kwargs) -> None:
+    """Create a single collection, skipping if it already exists."""
+    try:
+        client.create_collection(collection_name=name, **kwargs)
+    except Exception as e:
+        if "already exists" in str(e).lower():
+            logger.info("Collection %r already exists, skipping", name)
+            return
+        raise
+
+
 def init_collections() -> None:
     settings = get_settings()
     vector_size = settings.vector_size
     client = get_qdrant_client()
-    existing = {c.name for c in client.get_collections().collections}
 
     # 1. Products — hybrid search with dense + sparse vectors
-    if "products" not in existing:
-        client.create_collection(
-            collection_name="products",
-            vectors_config={
-                "dense": models.VectorParams(
-                    size=vector_size, distance=models.Distance.COSINE
-                ),
-            },
-            sparse_vectors_config={
-                "sparse": models.SparseVectorParams(modifier=models.Modifier.IDF),
-            },
-            quantization_config=models.ScalarQuantization(
-                scalar=models.ScalarQuantizationConfig(
-                    type=models.ScalarType.INT8,
-                    quantile=0.99,
-                    always_ram=True,
-                ),
+    _create_collection_safe(
+        client,
+        "products",
+        vectors_config={
+            "dense": models.VectorParams(
+                size=vector_size, distance=models.Distance.COSINE
             ),
-        )
-        for field, schema in [
-            ("retailer", models.PayloadSchemaType.KEYWORD),
-            ("category", models.PayloadSchemaType.KEYWORD),
-            ("region", models.PayloadSchemaType.KEYWORD),
-            ("price", models.PayloadSchemaType.FLOAT),
-            ("discount_pct", models.PayloadSchemaType.FLOAT),
-            ("valid_to", models.PayloadSchemaType.DATETIME),
-        ]:
+        },
+        sparse_vectors_config={
+            "sparse": models.SparseVectorParams(modifier=models.Modifier.IDF),
+        },
+        quantization_config=models.ScalarQuantization(
+            scalar=models.ScalarQuantizationConfig(
+                type=models.ScalarType.INT8,
+                quantile=0.99,
+                always_ram=True,
+            ),
+        ),
+    )
+    for field, schema in [
+        ("retailer", models.PayloadSchemaType.KEYWORD),
+        ("category", models.PayloadSchemaType.KEYWORD),
+        ("region", models.PayloadSchemaType.KEYWORD),
+        ("price", models.PayloadSchemaType.FLOAT),
+        ("discount_pct", models.PayloadSchemaType.FLOAT),
+        ("valid_to", models.PayloadSchemaType.DATETIME),
+    ]:
+        try:
             client.create_payload_index("products", field, field_schema=schema)
-        logger.info("Created 'products' collection with hybrid search")
+        except Exception:
+            pass  # Index may already exist
+    logger.info("'products' collection ready")
 
     # 2. Recipes — dense vector search
-    if "recipes" not in existing:
-        client.create_collection(
-            collection_name="recipes",
-            vectors_config=models.VectorParams(
-                size=vector_size, distance=models.Distance.COSINE
-            ),
-        )
-        for field, schema in [
-            ("type", models.PayloadSchemaType.KEYWORD),
-            ("cost", models.PayloadSchemaType.FLOAT),
-            ("time_minutes", models.PayloadSchemaType.INTEGER),
-            ("household_id", models.PayloadSchemaType.KEYWORD),
-        ]:
+    _create_collection_safe(
+        client,
+        "recipes",
+        vectors_config=models.VectorParams(
+            size=vector_size, distance=models.Distance.COSINE
+        ),
+    )
+    for field, schema in [
+        ("type", models.PayloadSchemaType.KEYWORD),
+        ("cost", models.PayloadSchemaType.FLOAT),
+        ("time_minutes", models.PayloadSchemaType.INTEGER),
+        ("household_id", models.PayloadSchemaType.KEYWORD),
+    ]:
+        try:
             client.create_payload_index("recipes", field, field_schema=schema)
-        logger.info("Created 'recipes' collection")
+        except Exception:
+            pass  # Index may already exist
+    logger.info("'recipes' collection ready")
 
     # 3. User preferences — Discovery API
-    if "user_preferences" not in existing:
-        client.create_collection(
-            collection_name="user_preferences",
-            vectors_config=models.VectorParams(
-                size=vector_size, distance=models.Distance.COSINE
-            ),
-        )
-        for field in ["user_id", "household_id"]:
+    _create_collection_safe(
+        client,
+        "user_preferences",
+        vectors_config=models.VectorParams(
+            size=vector_size, distance=models.Distance.COSINE
+        ),
+    )
+    for field in ["user_id", "household_id"]:
+        try:
             client.create_payload_index(
                 "user_preferences",
                 field,
                 field_schema=models.PayloadSchemaType.KEYWORD,
             )
-        logger.info("Created 'user_preferences' collection")
+        except Exception:
+            pass  # Index may already exist
+    logger.info("'user_preferences' collection ready")
 
     logger.info("All Qdrant collections initialized")

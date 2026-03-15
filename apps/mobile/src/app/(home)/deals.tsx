@@ -101,7 +101,10 @@ export default function DealsScreen() {
     setRouteStatus("loading");
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        setRouteStatus("error");
+        return;
+      }
       const selected = stores
         .filter((s) => selectedStores.has(s.id))
         .map((s) => s.name);

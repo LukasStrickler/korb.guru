@@ -74,6 +74,7 @@ async def list_recipes(
     result = await session.execute(
         select(Recipe)
         .where((Recipe.household_id == household_id) | (Recipe.household_id.is_(None)))
+        .order_by(Recipe.created_at.desc())
         .offset(pagination.offset)
         .limit(pagination.limit)
     )
@@ -91,11 +92,19 @@ async def search_recipes(
         q, household_id=str(user.household_id) if user.household_id else None
     )
     recipe_ids = [uuid.UUID(r.id) for r in results]
-    recipes = []
-    for rid in recipe_ids:
-        r = await session.get(Recipe, rid)
-        if r and (r.household_id is None or r.household_id == user.household_id):
-            recipes.append(r)
+    if not recipe_ids:
+        return []
+    result = await session.execute(
+        select(Recipe).where(
+            Recipe.id.in_(recipe_ids),
+            (Recipe.household_id.is_(None))
+            | (Recipe.household_id == user.household_id),
+        )
+    )
+    recipes = list(result.scalars().all())
+    # Preserve Qdrant relevance ordering
+    recipe_map = {r.id: r for r in recipes}
+    recipes = [recipe_map[rid] for rid in recipe_ids if rid in recipe_map]
     return await _recipe_responses(recipes, session)
 
 

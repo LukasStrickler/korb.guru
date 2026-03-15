@@ -3,11 +3,18 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class MessageCreate(BaseModel):
-    text: str = Field(min_length=1, max_length=2000)
+    text: str = Field(min_length=1, max_length=2000, strip_whitespace=True)
+
+    @field_validator("text")
+    @classmethod
+    def reject_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Message text must not be blank")
+        return v
 
 
 class MessageResponse(BaseModel):

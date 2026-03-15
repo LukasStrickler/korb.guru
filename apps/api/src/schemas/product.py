@@ -1,13 +1,12 @@
 """Product schemas."""
 
-import uuid
 from datetime import date
 
 from pydantic import BaseModel
 
 
 class ProductResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     retailer: str
     name: str
     description: str | None

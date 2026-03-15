@@ -2,7 +2,7 @@
 
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class HouseholdCreate(BaseModel):
@@ -11,6 +11,11 @@ class HouseholdCreate(BaseModel):
 
 class HouseholdJoin(BaseModel):
     invite_code: str = Field(min_length=1, max_length=50)
+
+    @field_validator("invite_code")
+    @classmethod
+    def strip_invite_code(cls, v: str) -> str:
+        return v.strip()
 
 
 class HouseholdResponse(BaseModel):

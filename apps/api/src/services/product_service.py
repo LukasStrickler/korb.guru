@@ -214,15 +214,18 @@ def update_product_preference(
 
     try:
         # Look up existing user preference vector
+        pref_must = [
+            models.FieldCondition(key="user_id", match=models.MatchValue(value=user_id))
+        ]
+        if household_id:
+            pref_must.append(
+                models.FieldCondition(
+                    key="household_id", match=models.MatchValue(value=household_id)
+                )
+            )
         existing = client.query_points(
             collection_name="user_preferences",
-            query_filter=models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="user_id", match=models.MatchValue(value=user_id)
-                    )
-                ]
-            ),
+            query_filter=models.Filter(must=pref_must),
             query=product_vector,
             with_vectors=True,
             limit=1,

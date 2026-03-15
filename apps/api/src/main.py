@@ -56,15 +56,9 @@ async def lifespan(app: FastAPI):
         _logger.info("Qdrant collections initialized")
     except Exception as e:
         err_msg = str(e).lower()
-        if (
-            "already exists" in err_msg
-            or "connection" in err_msg
-            or "connect" in err_msg
-            or "name resolution" in err_msg
-        ):
-            _logger.warning(
-                "Qdrant init skipped (not connected or already exists): %s", e
-            )
+        conn_err = "connection" in err_msg or "connect" in err_msg
+        if conn_err or "name resolution" in err_msg:
+            _logger.warning("Qdrant init skipped (not connected): %s", e)
         else:
             _logger.error("Qdrant init failed: %s", e)
             raise
@@ -91,6 +85,9 @@ app.add_middleware(
 
 # ── Legacy routes (kept for backward compatibility) ──────────
 app.include_router(health_router)
+# NOTE: /status exposes internal service details (collection names, latencies).
+# This is intentional for dev/hackathon use. In production, protect this route
+# behind authentication or restrict access via reverse proxy rules.
 app.include_router(status_router)
 app.include_router(hello_router)
 app.include_router(examples_router)

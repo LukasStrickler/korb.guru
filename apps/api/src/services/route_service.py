@@ -17,7 +17,7 @@ async def optimize_route(
     session: AsyncSession,
 ) -> dict:
     stores_result = await session.execute(
-        select(Store).where(Store.brand.in_(selected_shops))
+        select(Store).where(Store.name.in_(selected_shops))
     )
     stores = stores_result.scalars().all()
 

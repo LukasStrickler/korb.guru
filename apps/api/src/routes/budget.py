@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
@@ -36,10 +37,19 @@ async def _get_or_create_settings(
     )
     settings = result.scalars().first()
     if not settings:
-        settings = BudgetSettings(household_id=household_id)
-        session.add(settings)
-        await session.commit()
-        await session.refresh(settings)
+        try:
+            settings = BudgetSettings(household_id=household_id)
+            session.add(settings)
+            await session.commit()
+            await session.refresh(settings)
+        except IntegrityError:
+            await session.rollback()
+            result = await session.execute(
+                select(BudgetSettings).where(
+                    BudgetSettings.household_id == household_id
+                )
+            )
+            settings = result.scalars().first()
     return settings
 
 
