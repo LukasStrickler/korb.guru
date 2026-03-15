@@ -457,7 +457,8 @@ async def _scrape_lidl_flyers(products: list[dict], max_items: int) -> None:
                 if not api_resp.is_success:
                     continue
 
-                flyer = api_resp.json()
+                data = api_resp.json()
+                flyer = data.get("flyer", data)
                 pages = flyer.get("pages", [])
 
                 for page in pages:
