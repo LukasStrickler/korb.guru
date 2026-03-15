@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     openai_api_key: str | None = None
 
-    # OpenRouter LLM
+    # LLM — Apify OpenRouter proxy (primary), direct OpenRouter (fallback)
+    apify_token: str | None = None
     openrouter_api_key: str | None = None
     openrouter_default_model: str = "google/gemini-2.5-flash"
 
