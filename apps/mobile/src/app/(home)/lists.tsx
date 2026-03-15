@@ -1,0 +1,206 @@
+import {
+  ApiError,
+  getGroceryLists,
+  type GroceryItem,
+  type GroceryList,
+} from "@/lib/api";
+import { useAuth } from "@clerk/clerk-expo";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+function GroceryItemRow({
+  item,
+  onToggle,
+}: {
+  item: GroceryItem;
+  onToggle: () => void;
+}) {
+  return (
+    <Pressable onPress={onToggle} className="flex-row items-center gap-3 py-2">
+      <View
+        className={`w-6 h-6 rounded border-2 items-center justify-center ${
+          item.is_checked
+            ? "bg-[#0a7ea4] border-[#0a7ea4]"
+            : "bg-white border-gray-300"
+        }`}
+      >
+        {item.is_checked && (
+          <Text className="text-white text-xs font-bold">✓</Text>
+        )}
+      </View>
+      <Text
+        className={`text-base flex-1 ${
+          item.is_checked ? "text-gray-400 line-through" : "text-gray-900"
+        }`}
+      >
+        {item.ingredient_name}
+      </Text>
+      {item.quantity && (
+        <Text className="text-sm text-gray-400">{item.quantity}</Text>
+      )}
+    </Pressable>
+  );
+}
+
+export default function ListsScreen() {
+  const { getToken } = useAuth();
+
+  const [lists, setLists] = useState<GroceryList[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">(
+    "idle",
+  );
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const loadLists = useCallback(async () => {
+    setStatus("loading");
+    setErrorMsg(null);
+    try {
+      const token = await getToken();
+      if (!token) {
+        setStatus("error");
+        setErrorMsg("Not signed in");
+        return;
+      }
+      const data = await getGroceryLists(token);
+      setLists(data);
+      setStatus("ok");
+    } catch (e) {
+      setStatus("error");
+      setErrorMsg(
+        e instanceof ApiError && e.detail
+          ? e.detail
+          : e instanceof Error
+            ? e.message
+            : "Failed to load lists",
+      );
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    loadLists();
+  }, [loadLists]);
+
+  const toggleItem = (listIndex: number, itemId: string) => {
+    setLists((prev) =>
+      prev.map((list, li) =>
+        li === listIndex
+          ? {
+              ...list,
+              items: list.items.map((item) =>
+                item.id === itemId
+                  ? { ...item, is_checked: !item.is_checked }
+                  : item,
+              ),
+            }
+          : list,
+      ),
+    );
+  };
+
+  const groupByCategory = (items: GroceryItem[]) => {
+    const groups: Record<string, GroceryItem[]> = {};
+    for (const item of items) {
+      const cat = item.category || "Other";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-white">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: 24,
+          paddingBottom: 32,
+        }}
+      >
+        <View className="gap-4">
+          <Text className="text-3xl font-bold text-gray-900">
+            Grocery Lists
+          </Text>
+
+          {status === "loading" && (
+            <View className="items-center py-12">
+              <ActivityIndicator size="large" color="#0a7ea4" />
+              <Text className="mt-4 text-base text-gray-500">
+                Loading lists...
+              </Text>
+            </View>
+          )}
+
+          {status === "error" && errorMsg && (
+            <View className="items-center py-8 gap-3">
+              <Text className="text-sm text-red-600 text-center">
+                {errorMsg}
+              </Text>
+              <Pressable
+                onPress={loadLists}
+                className="rounded-xl bg-[#0a7ea4] px-4 py-3 active:opacity-90"
+              >
+                <Text className="text-white font-semibold">Retry</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {status === "ok" && lists.length === 0 && (
+            <View className="items-center py-12">
+              <Text className="text-base text-gray-500">
+                No grocery lists yet
+              </Text>
+              <Text className="text-sm text-gray-400 mt-1">
+                Your lists will appear here
+              </Text>
+            </View>
+          )}
+
+          {lists.map((list, listIndex) => (
+            <View
+              key={list.id}
+              className="rounded-xl border border-gray-200 bg-white p-4 gap-3"
+            >
+              <View className="flex-row justify-between items-center">
+                <Text className="text-lg font-semibold text-gray-900">
+                  {list.name}
+                </Text>
+                {list.estimated_total > 0 && (
+                  <Text className="text-sm text-gray-500">
+                    ~CHF {list.estimated_total.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+              {groupByCategory(list.items).map(([category, items]) => (
+                <View key={category} className="gap-1">
+                  <Text className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    {category}
+                  </Text>
+                  {items.map((item) => (
+                    <GroceryItemRow
+                      key={item.id}
+                      item={item}
+                      onToggle={() => toggleItem(listIndex, item.id)}
+                    />
+                  ))}
+                </View>
+              ))}
+              {list.items.length === 0 && (
+                <Text className="text-sm text-gray-400 text-center py-2">
+                  Empty list
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

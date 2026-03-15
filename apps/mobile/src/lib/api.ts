@@ -1,5 +1,37 @@
 import type { ExampleItem, HelloResponse } from "@korb/contracts";
 
+export type ProductSearchResult = {
+  id: string;
+  name: string;
+  price: number | null;
+  retailer: string;
+  category: string;
+  discount_pct: number | null;
+};
+
+export type Recipe = {
+  id: string;
+  title: string;
+  cost: number | null;
+  time_minutes: number | null;
+  ingredients: string[];
+};
+
+export type GroceryItem = {
+  id: string;
+  ingredient_name: string;
+  quantity: string | null;
+  category: string;
+  is_checked: boolean;
+};
+
+export type GroceryList = {
+  id: string;
+  name: string;
+  estimated_total: number;
+  items: GroceryItem[];
+};
+
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
 };
@@ -167,3 +199,40 @@ export type DeleteMeResponse = { ok: boolean };
 export const deleteAccount = (token: string): Promise<DeleteMeResponse> => {
   return apiFetchWithAuth<DeleteMeResponse>("/me", token, { method: "DELETE" });
 };
+
+export const searchProducts = (
+  token: string,
+  query: string,
+  retailers?: string[],
+) =>
+  apiFetchWithAuth<ProductSearchResult[]>(
+    `/api/v1/products/search?q=${encodeURIComponent(query)}${retailers?.length ? `&retailers=${retailers.join(",")}` : ""}`,
+    token,
+  );
+
+export const getDeals = (token: string) =>
+  apiFetchWithAuth<ProductSearchResult[]>("/api/v1/products/deals", token);
+
+export const askProductQuestion = (token: string, question: string) =>
+  apiFetchWithAuth<{ answer: string; products: ProductSearchResult[] }>(
+    "/api/v1/products/ask",
+    token,
+    { method: "POST", body: { question } },
+  );
+
+export const discoverRecipes = (token: string) =>
+  apiFetchWithAuth<Recipe[]>("/api/v1/recipes/discover", token);
+
+export const swipeRecipe = (
+  token: string,
+  recipeId: string,
+  action: "accept" | "reject",
+) =>
+  apiFetchWithAuth<{ status: string }>(
+    `/api/v1/recipes/${recipeId}/swipe`,
+    token,
+    { method: "POST", body: { action } },
+  );
+
+export const getGroceryLists = (token: string) =>
+  apiFetchWithAuth<GroceryList[]>("/api/v1/grocery/lists", token);
