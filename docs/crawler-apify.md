@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Apify crawler uses a single custom Actor (`korb-guru/swiss-grocery-scraper`) to scrape all 5 Swiss grocery retailers: Aldi, Migros, Coop, Denner, and Lidl.
+The Apify crawler uses a single custom Actor (`korb-guru/swiss-grocery-scraper`, ID: `qeEDAn8QsQNc5P5oB`) to scrape all 5 Swiss grocery retailers: Aldi, Migros, Coop, Denner, and Lidl.
 
 ## Architecture
 
@@ -10,8 +10,9 @@ The Apify crawler uses a single custom Actor (`korb-guru/swiss-grocery-scraper`)
 crawler/apify/
 ├── orchestrator.py      # Main runner: executes Actor with retry logic
 ├── config.py            # Actor ID, tokens, retailer configs
+├── google_maps.py       # Google Maps Store Discovery (compass/crawler-google-places)
 ├── ingest/
-│   ├── transform.py     # Normalize + validate data
+│   ├── transform.py     # Normalize + validate data (_is_junk_name ~15 filter rules)
 │   └── pipeline.py      # Embed + upsert to Qdrant
 └── actors/
     └── swiss-grocery-scraper/   # Custom Apify Actor
@@ -22,18 +23,29 @@ crawler/apify/
         ├── requirements.txt
         └── src/
             ├── main.py          # Actor entry point
-            └── routes.py        # Per-retailer scraping handlers
+            ├── routes.py        # Per-retailer scraping handlers
+            └── pdf_extract.py   # PDF extraction (block extractor + pdfplumber + Docling)
 ```
 
 ## Scraping Methods
 
-| Retailer | Method                        | Source                                                     |
-| -------- | ----------------------------- | ---------------------------------------------------------- |
-| Aldi     | httpx + Docling               | Scene7 CDN PDF download, Docling OCR extraction            |
-| Migros   | Issuu + Crawlee Playwright    | Issuu page images via Docling OCR + aktionen HTML scraping |
-| Coop     | Crawlee Playwright            | aktionen HTML page, product card extraction                |
-| Denner   | Issuu + Crawlee BeautifulSoup | Issuu page images via Docling OCR + SSR HTML scraping      |
-| Lidl     | Crawlee Playwright + Docling  | PDF link discovery + Docling OCR extraction                |
+| Retailer | Method                             | Source                                                                            | Local Extraction   |
+| -------- | ---------------------------------- | --------------------------------------------------------------------------------- | ------------------ |
+| Aldi     | Block extractor (pdfplumber)       | Scene7 CDN PDF, article-number anchoring (5-6 digits)                             | ~146 products/week |
+| Lidl     | Block extractor (pdfplumber) + API | PDF via block extractor (7-digit article numbers) + sortiment.lidl.ch API         | ~129 products/week |
+| Coop     | Crawlee Playwright                 | aktionen HTML page — ePaper PDFs are newspaper ads, coop.ch blocked by Cloudflare | Problematic        |
+| Denner   | HTML Scraping                      | denner.ch/aktionen (accessible, ~466 products)                                    | Works              |
+| Migros   | Crawlee Playwright                 | Issuu page images — direct HTTP returns 403, needs Playwright                     | Needs work         |
+
+## PDF Block Extraction
+
+The block extractor (`_extract_blocks()` in `pdf_extract.py`) handles Aldi and Lidl flyer PDFs which use visual grid layouts:
+
+1. **Find article number anchors** — Aldi uses 5-6 digit codes, Lidl uses 7-digit codes
+2. **Search upward** in a vertical strip above each anchor for product name, price, discount
+3. **Ceiling constraint** — the search zone is limited by the nearest anchor above to prevent merging adjacent product blocks
+4. **Hyphen joining** — handles split words like "Lachs-" + "spitzen" → "Lachsspitzen"
+5. **Doubled character fix** — deduplicates overlapping text layers ("FFrrhhlliinngg" → "Frühling")
 
 ## Usage
 
@@ -82,3 +94,36 @@ Apify Actor Run
 ## Retry Logic
 
 The orchestrator retries failed Actor runs up to 2 times with exponential backoff (5s, 10s). Configurable via `MAX_RETRIES` and `ACTOR_TIMEOUT_SECS` in config.py.
+
+## Google Maps Store Discovery
+
+Discovers grocery store locations using the `compass/crawler-google-places` Apify actor (~$4/1000 places).
+
+```bash
+# Discover all brands in Zürich
+python -m crawler.apify.google_maps
+
+# Single brand
+python -m crawler.apify.google_maps --brand=migros
+
+# Dry run (fetch but don't ingest)
+python -m crawler.apify.google_maps --dry-run
+
+# Custom API endpoint
+python -m crawler.apify.google_maps --ingest-url=http://localhost:8000
+```
+
+Stores are ingested via `POST /api/v1/stores/ingest` and deduplicated by Google Place ID. Brands detected: Migros, Coop, Aldi Suisse, Lidl, Denner.
+
+## Normalization & Quality Filters
+
+`transform.py` normalizes raw Actor output and applies comprehensive junk filters:
+
+- Junk name regex (dates, travel content, metadata, price fragments)
+- Category header detection (single words like "Fleisch", "Getränke")
+- All-caps headers, color-only names, non-grocery keywords
+- OCR artefact detection (doubled characters, concatenated words, repeated words)
+- Non-grocery product filter (beauty, electronics, bedding, travel)
+- Price validation (CHF 0.10 – 500.00)
+
+Typical filtering rate: ~27% of raw items removed as junk.

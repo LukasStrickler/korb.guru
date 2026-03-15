@@ -204,6 +204,252 @@ def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
     return products
 
 
+# Article number patterns per retailer
+_ALDI_ARTICLE_RE = re.compile(r"^\d{5,6}$")
+_LIDL_ARTICLE_RE = re.compile(r"^\d{7}$")
+
+# Metadata words to skip when building product names from block extraction
+_BLOCK_SKIP_WORDS = frozenset({
+    "herkunft", "siehe", "umverpackung", "pro", "weitere", "sorten",
+    "diverse", "konkurrenz", "aldi", "lidl", "preis", "sparen", "aktion",
+    "deal", "garantie", "donnerstag", "montag", "dienstag", "mittwoch",
+    "freitag", "samstag", "sonntag", "gratis", "erhältlich", "rauchen",
+    "auf", "seite", "solange", "vorrat", "bis", "tödlich", "basierend",
+    "eigene", "erhebung", "mitbewerber", "günstiger", "unser", "tipp",
+    "modell", "modelle", "farbe", "farben", "material", "highlight",
+    "duopack", "multipack", "sparpack", "vorteilspack",
+    "mit", "plus", "lidl", "abtropfgewicht", "einzelpreis",
+    "kundenbewertungen", "sortiment", "stand",
+})
+
+# Page header patterns to filter from product names
+_PAGE_HEADER_RE = re.compile(
+    r"(?:WOCHENENDE|WEEKENDDEALS|OSTERDEALS|SUPERDEAL|AKTIONEN|"
+    r"TIEFPREISGARANTIE|GESCHENK|IDEEN|ENTDECKE|UNSERE|ATTRAKTIVEN|"
+    r"OSTER|DEALS|WWEEKK|BRANCHENCHAMPION|PREIS-HIGHLIGHT|"
+    r"AB\s+(?:MO|DI|MI|DO|FR|SA|SO)|GÜLTIG|lohnt\s+sich|"
+    r"Lidl\s+hat|günstigsten|Sieger|Einkauf|Warenkorb|"
+    r"Siegerpodest|Bio-Preis)",
+    re.IGNORECASE,
+)
+
+
+def _extract_blocks(file_path: str, retailer: str) -> list[dict]:
+    """Extract products from flyer PDFs using article-number anchoring.
+
+    Grocery flyers (Aldi, Lidl) use visual grid layouts where product name
+    and price are on different lines. Each product block has an article
+    number at the bottom. We find these anchors, then look upward in
+    the same column for the product name, price and discount.
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        return []
+
+    # Retailer-specific settings
+    if retailer == "aldi":
+        article_re = _ALDI_ARTICLE_RE
+        x_tolerance = 100
+        y_range = 250
+        max_name_parts = 3
+    elif retailer == "lidl":
+        article_re = _LIDL_ARTICLE_RE
+        x_tolerance = 120   # Lidl blocks ~200px wide, 2-col on 515px page
+        y_range = 200
+        max_name_parts = 3
+    else:
+        return []
+
+    products: list[dict] = []
+    seen: set[str] = set()
+
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            for page in pdf.pages:
+                words = page.extract_words(
+                    keep_blank_chars=True, x_tolerance=3, y_tolerance=3
+                )
+                if not words:
+                    continue
+
+                anchors = [
+                    w for w in words if article_re.match(w["text"].strip())
+                ]
+
+                # Sort anchors by position for ceiling computation
+                anchor_positions = [
+                    (a["x0"], a["top"]) for a in anchors
+                ]
+
+                for anchor in anchors:
+                    ax, ay = anchor["x0"], anchor["top"]
+
+                    # Find the nearest anchor ABOVE in the same column
+                    # to limit the search zone (prevents merging blocks)
+                    ceiling = ay - y_range
+                    for ox, oy in anchor_positions:
+                        if abs(ox - ax) < x_tolerance and oy < ay - 10:
+                            # Another anchor above in same column
+                            ceiling = max(ceiling, oy + 10)
+
+                    # Collect words in a vertical strip above the anchor
+                    nearby = sorted(
+                        [
+                            w
+                            for w in words
+                            if abs(w["x0"] - ax) < x_tolerance
+                            and ceiling < w["top"] < ay + 20
+                            and w["text"].strip()
+                        ],
+                        key=lambda w: w["top"],
+                    )
+                    if not nearby:
+                        continue
+
+                    name_parts: list[str] = []
+                    prices: list[float] = []
+                    discount: float | None = None
+
+                    for w in nearby:
+                        txt = w["text"].strip()
+
+                        # Fix doubled characters (OCR artefact)
+                        txt = _fix_doubled_chars(txt)
+
+                        # Price (standalone like "13.99")
+                        if re.match(r"^\d{1,3}[.,]\d{2}$", txt):
+                            p = float(txt.replace(",", "."))
+                            if PRICE_MIN <= p <= PRICE_MAX:
+                                prices.append(p)
+                            continue
+
+                        # Discount
+                        dm = re.match(r"-(\d{1,2})%", txt)
+                        if dm:
+                            discount = float(dm.group(1))
+                            continue
+
+                        # Weight / quantity (skip, not part of name)
+                        if re.match(
+                            r"^(?:\d+\s*(?:x\s*\d+\s*)?(?:g|kg|ml|l|cl|dl|stk|liter|stück)\b)",
+                            txt,
+                            re.IGNORECASE,
+                        ):
+                            continue
+
+                        # Per-unit price like "100 g = 1.54"
+                        if re.match(r"\d+\s*(?:g|kg|ml|l)\s*=", txt):
+                            continue
+
+                        # Skip article numbers
+                        if article_re.match(txt):
+                            continue
+                        # Also skip the other retailer's article pattern
+                        if _ALDI_ARTICLE_RE.match(txt) or _LIDL_ARTICLE_RE.match(txt):
+                            continue
+
+                        # Per-unit prices with /
+                        if "/" in txt and re.search(r"\d", txt):
+                            continue
+
+                        # Skip metadata words
+                        txt_lower = txt.lower()
+                        if any(s in txt_lower for s in _BLOCK_SKIP_WORDS):
+                            continue
+
+                        # Skip page headers
+                        if _PAGE_HEADER_RE.search(txt):
+                            continue
+
+                        # Skip date patterns
+                        if re.match(r"(?:Ab\s+)?(?:Do|Mo|Di|Mi|Fr|Sa|So)\.", txt, re.IGNORECASE):
+                            continue
+                        if re.search(r"\d{1,2}\.\d{1,2}\.", txt):
+                            continue
+
+                        # Skip "Herkunft: ..." lines
+                        if txt_lower.startswith("herkunft"):
+                            continue
+
+                        # Product name part: must have ≥3 alpha chars
+                        alpha_count = sum(1 for c in txt if c.isalpha())
+                        if alpha_count >= 3 and len(txt) >= 3:
+                            # Join hyphenated fragments (Lachs- + spitzen)
+                            if name_parts and name_parts[-1].endswith("-"):
+                                name_parts[-1] = name_parts[-1][:-1] + txt
+                            else:
+                                name_parts.append(txt)
+
+                    if not name_parts:
+                        continue
+
+                    name = " ".join(name_parts[:max_name_parts]).strip()
+                    name = re.sub(r"[•·]", "", name).strip()
+                    name = re.sub(r"\s+", " ", name)
+
+                    # Skip if too short or already seen
+                    if len(name) < 4 or name.lower() in seen:
+                        continue
+
+                    # Skip names that are all caps and look like headers
+                    if name.isupper() and len(name.split()) <= 2 and len(name) < 20:
+                        if name.lower() in _CATEGORY_HEADERS:
+                            continue
+
+                    # Clean trailing hyphens and fragments
+                    name = re.sub(r"\s*-\s*$", "", name).strip()
+                    # Remove "t: Schweiz" type trailing metadata
+                    name = re.sub(r"\s+t:\s+\w+$", "", name).strip()
+                    if len(name) < 4:
+                        continue
+
+                    # Skip garbled text (high non-ASCII/non-letter ratio)
+                    alpha_ratio = sum(1 for c in name if c.isalpha()) / max(len(name), 1)
+                    if alpha_ratio < 0.5:
+                        continue
+
+                    # Skip names starting with lowercase (broken fragments)
+                    if name[0].islower() and not name[0].isdigit():
+                        continue
+
+                    # Skip non-grocery content (plant care, fashion, etc.)
+                    name_lower = name.lower()
+                    if any(w in name_lower for w in (
+                        "sonnig", "halbschattig", "drinnen", "draussen",
+                        "wasserkammer", "regelmässig", "integriert",
+                    )):
+                        continue
+
+                    sale_price = min(prices) if prices else None
+                    orig_price = (
+                        max(prices) if len(prices) > 1 else None
+                    )
+                    if orig_price and sale_price and orig_price <= sale_price:
+                        orig_price = None
+
+                    if not discount and sale_price and orig_price:
+                        discount = round(
+                            (1 - sale_price / orig_price) * 100, 0
+                        )
+
+                    seen.add(name.lower())
+                    products.append(
+                        {
+                            "retailer": retailer,
+                            "name": name,
+                            "price": sale_price,
+                            "original_price": orig_price,
+                            "discount_pct": discount,
+                            "category": "offer",
+                        }
+                    )
+    except Exception as e:
+        logger.warning(f"Block extraction failed for {retailer}: {e}")
+
+    return products
+
+
 def _extract_with_pdfplumber(file_path: str) -> str:
     """Extract text from PDF using pdfplumber (fast, works on embedded text)."""
     try:
@@ -251,6 +497,16 @@ def extract_products_from_file(
     is False, fall back to Docling OCR (slow but handles scanned/image PDFs).
     """
     file_path = str(file_path)
+
+    # Aldi/Lidl: use article-number-anchored block extraction (grid layout)
+    if retailer in ("aldi", "lidl"):
+        block_products = _extract_blocks(file_path, retailer)
+        if block_products:
+            logger.info(
+                f"Block extractor ({retailer}): {len(block_products)} products "
+                f"from {Path(file_path).name}"
+            )
+            return block_products
 
     # Step 1: Try pdfplumber (fast — seconds)
     text = _extract_with_pdfplumber(file_path)
