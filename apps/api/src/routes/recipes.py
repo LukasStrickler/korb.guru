@@ -165,8 +165,19 @@ async def swipe_recipe(
         raise HTTPException(status_code=404, detail="Recipe not found")
     if recipe.household_id is not None and recipe.household_id != user.household_id:
         raise HTTPException(status_code=404, detail="Recipe not found")
-    swipe = SwipeAction(user_id=user.id, recipe_id=recipe_id, action=body.action)
-    session.add(swipe)
+    # Upsert: update existing swipe or create new one
+    existing = await session.execute(
+        select(SwipeAction).where(
+            SwipeAction.user_id == user.id,
+            SwipeAction.recipe_id == recipe_id,
+        )
+    )
+    swipe = existing.scalar_one_or_none()
+    if swipe:
+        swipe.action = body.action
+    else:
+        swipe = SwipeAction(user_id=user.id, recipe_id=recipe_id, action=body.action)
+        session.add(swipe)
     await session.commit()
     update_user_preference(
         str(user.id),

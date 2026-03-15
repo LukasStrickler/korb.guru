@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Uuid
+from sqlalchemy import ForeignKey, Integer, Numeric, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimestampMixin
@@ -43,6 +43,9 @@ class RecipeIngredient(Base):
 
 class SwipeAction(Base, TimestampMixin):
     __tablename__ = "swipe_actions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "recipe_id", name="uq_swipe_actions_user_recipe"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(

@@ -25,7 +25,7 @@ async def update_profile(
 ):
     if body.username is not None:
         user.username = body.username
-    if body.avatar_url is not None:
+    if "avatar_url" in body.model_fields_set:
         user.avatar_url = body.avatar_url
     session.add(user)
     await session.commit()

@@ -8,7 +8,7 @@ Usage:
     python -m crawler.apify.google_maps
     python -m crawler.apify.google_maps --brand=migros
     python -m crawler.apify.google_maps --dry-run
-    python -m crawler.apify.google_maps --ingest-url=http://localhost:8001
+    python -m crawler.apify.google_maps --ingest-url=http://localhost:8000
 """
 
 import argparse
@@ -129,7 +129,7 @@ def transform_places(raw_places: list[dict]) -> list[dict]:
 
 def ingest_to_api(
     places: list[dict],
-    base_url: str = "http://localhost:8001",
+    base_url: str = "http://localhost:8000",
     api_key: str | None = None,
     region: str = "zurich",
 ) -> dict:
@@ -172,7 +172,7 @@ def main():
     parser.add_argument(
         "--ingest-url",
         type=str,
-        default="http://localhost:8001",
+        default="http://localhost:8000",
         help="Backend API base URL for ingestion",
     )
     parser.add_argument(

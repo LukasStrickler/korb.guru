@@ -244,14 +244,14 @@ python -m crawler.apify.google_maps
      -o products.json
 
    # Then POST to local API
-   curl -X POST http://localhost:8001/ingest \
+   curl -X POST http://localhost:8000/ingest \
      -H "Content-Type: application/json" \
      -d '{"source":"apify","records":'$(cat products.json)'}'
    ```
 
 5. **Discover stores:**
    ```bash
-   python -m crawler.apify.google_maps --ingest-url=http://localhost:8001
+   python -m crawler.apify.google_maps --ingest-url=http://localhost:8000
    ```
 
 ---

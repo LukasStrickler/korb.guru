@@ -99,7 +99,7 @@ redis:
     - redisdata:/data
 ```
 
-2. Update rate limiter in `main.py`:
+2. Update rate limiter in `ingest_ratelimit.py`:
 
 ```python
 from slowapi import Limiter
@@ -213,7 +213,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Coolify Webhook
-        run: curl -X POST "${{ secrets.COOLIFY_WEBHOOK_URL }}"
+        run: curl -f -X POST "${{ secrets.COOLIFY_WEBHOOK_URL }}"
 ```
 
 ### Database Backups
