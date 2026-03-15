@@ -39,9 +39,33 @@ _JUNK_PATTERNS = re.compile(
     r"|(?:lidl|aldi|coop|migros|denner)\s*$"  # retailer name alone
     r"|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag"
     r"|aktion|angebot|rabatt|sparen|gratis|neu\s*$"
+    # Non-grocery content (travel, fashion, household, etc.)
+    r"|(?:tage|nächte),?\s*(?:dz|ez|innenkabine)"  # travel offers
+    r"|buchbar|reise|flug|hotel|kreuzfahrt|wellness"
+    r"|termine:|voucher|gutschein"
+    r"|(?:damen|herren|kinder)\s*$"  # clothing category headers
+    r"|farbe|grösse|sortiment"  # product attribute labels
+    r"|preishighlight|highlight|trendige?"
+    r"|auch\s+in\b"          # "auch in Schwarz"
+    r"|schwarz|weiss|blau|rot|grün\s*$"  # colour-only names
+    r"|(?:mo|di|mi|do|fr|sa|so)\s*[-–]\s*(?:mo|di|mi|do|fr|sa|so)"
+    r"|leistung|eigene\s+erhebung"
+    r"|im\s+\d+cm"           # "Im 14cmKulturtopf"
+    r"|kulturtopf|velosattel|velozubehör"
+    r"|z\.\s*B\.\s*$"        # "z. B." alone
     r")",
     re.IGNORECASE,
 )
+
+# Non-grocery words — if a name contains too many of these, skip it
+_NON_GROCERY_WORDS = frozenset({
+    "reise", "hotel", "flug", "kreuzfahrt", "nächte", "tage",
+    "kabine", "innenkabine", "dz", "ez", "economy", "class",
+    "buchbar", "voucher", "gutschein", "termine",
+    "damen", "herren", "kinder", "grösse",
+    "velosattel", "velozubehör", "kulturtopf",
+    "licht", "lampe", "led",
+})
 
 
 def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
@@ -74,6 +98,13 @@ def _parse_products_from_text(text: str, retailer: str) -> list[dict]:
         # Skip names that are mostly numbers/punctuation
         alpha_chars = sum(1 for c in name if c.isalpha())
         if alpha_chars < 3:
+            continue
+        # Skip non-grocery items (travel, fashion, etc.)
+        name_words = set(name.lower().split())
+        if len(name_words & _NON_GROCERY_WORDS) >= 2:
+            continue
+        # Skip single all-caps words that are category headers
+        if name.isupper() and len(name.split()) <= 2:
             continue
 
         seen.add(name.lower())
