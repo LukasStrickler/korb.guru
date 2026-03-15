@@ -24,7 +24,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky",
     "contracts:openapi": "uv run --project apps/api python apps/api/scripts/export_openapi.py",
-    "contracts:generate": "pnpm contracts:openapi && prettier --write apps/api/openapi.json && pnpm --filter @korb/contracts generate:api && prettier --write \"packages/contracts/src/generated/api/**/*.ts\"",
+    "contracts:generate": "pnpm contracts:openapi && prettier --write apps/api/openapi.json && pnpm --filter @korb/contracts generate:api && prettier --ignore-path /dev/null --write \"packages/contracts/src/generated/api/**/*.ts\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "db:up": "docker compose -f compose.yml up -d",

@@ -1,7 +1,7 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
-
+ 
 import type { MealSlot } from "./MealSlot";
 export type MealPlanResponse = {
   id: string;
